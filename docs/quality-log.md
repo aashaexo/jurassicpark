@@ -4,6 +4,10 @@ All beauty captures use the fixed positions and look-at targets in
 `tools/shoot.mjs` at 1280×720, tier `high`. Diagnostic captures use the same
 overview pose and the URL modes documented below.
 
+The earlier captures used invalid poses and are not valid visual evidence:
+they placed the camera far outside the valley, making the terrain appear as a
+small central island while the sky dome's underside filled the frame.
+
 ## Iteration: geometry correction
 
 - Diagnostic: `media/diagnostic-normal-overview.png`
@@ -43,6 +47,22 @@ overview pose and the URL modes documented below.
   the overview reads as one connected valley landform without floating chunks,
   although the distant terrain and sky still need additional photographic
   grading before matching the reference.
-- `media/toward-sun.png` — position `[65, 22, 35]`, look-at `[180, 28, -120]`;
-  the sun-facing frame has warm atmospheric lighting and a continuous ground
-  plane, but the sun disc is small and the foreground remains too dark.
+- `media/toward-sun.png` uses the derived road pose recorded in
+  `media/report.json`; the earlier hardcoded position is obsolete.
+
+## Iteration: derived camera and light direction
+
+- `media/report.json` now records camera position, look-at, terrain height, and
+  render statistics for every screenshot.
+- `media/road-ground.png` — derived road pose at
+  `[-102.41, 23.18, 145.90]`, terrain height `21.48`; the eye-height view now
+  actually occupies the valley and shows a continuous road/terrain surface,
+  but the material still reads as a dark warm dirt surface rather than a
+  photographic jungle valley.
+- `media/diagnostic-white-road.png` — same derived road pose with a white
+  Lambert terrain; direct lighting is now present after correcting the sun
+  placement from underground to above-horizon, though the warm light is too
+  orange for final use.
+- `media/hills-sky.png` — derived overview pose; the horizon is no longer the
+  painted underside of the sky dome, but the atmospheric sky is still too
+  saturated.

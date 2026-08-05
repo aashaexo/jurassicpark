@@ -75,10 +75,6 @@ void main() {
   radiance += vec3(0.19, 0.15, 0.1) * cloudBand;
   float haze = exp(-max(view.y, -0.05) * max(view.y, -0.05) * 26.0);
   radiance += vec3(0.24, 0.13, 0.045) * haze * (1.0 + 0.7 * max(0.0, sun.y));
-  if (view.y < -0.055) {
-    float groundHaze = smoothstep(-0.42, -0.055, -view.y);
-    radiance = mix(radiance, vec3(0.22, 0.11, 0.045), groundHaze);
-  }
   gl_FragColor = vec4(max(radiance, vec3(0.0001)), 1.0);
 }
 `;
@@ -129,8 +125,9 @@ export class Sky {
     const y = this.sunDirection.y;
     return {
       zenith: [0.05 + y * 0.02, 0.07 + y * 0.02, 0.14 + y * 0.04],
-      horizon: [0.14 + y * 0.08, 0.08 + y * 0.04, 0.04 + y * 0.015],
-      sun: [8.0 + y * 4.0, 5.2 + y * 2.4, 2.4 + y],
+      horizonAwayFromSun: [0.14 + y * 0.08, 0.08 + y * 0.04, 0.04 + y * 0.015],
+      horizonTowardSun: [0.34 + y * 0.16, 0.16 + y * 0.08, 0.06 + y * 0.03],
+      sunDisc: [4.8 + y * 1.5, 3.2 + y * 0.9, 1.3 + y * 0.4],
     };
   }
 }

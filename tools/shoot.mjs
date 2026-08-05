@@ -17,13 +17,52 @@ page.on('pageerror', (error) => errors.push(error.message));
 await page.goto('http://localhost:8099/?tier=high');
 await page.waitForFunction(() => window.__sceneReady === true, null, { timeout: 30000 });
 await page.waitForTimeout(1200);
-const viewpoints = [
-  ['road-ground', [-128, 12, 148], [-82, 10, 42]],
-  ['hills-sky', [0, 18, -70], [0, 42, -220]],
-  ['valley-overview', [-205, 92, 205], [0, 0, 0]],
-  ['toward-sun', [65, 22, 35], [180, 28, -120]],
-];
-for (const [name, position, lookAt] of viewpoints) {
+const viewpoints = await page.evaluate(() => {
+  const g = window.__game;
+  const terrainY = (x, z) => g.terrain.heightAt(x, z);
+  const roadPose = (x, z, name) => {
+    const sample = g.roadSample(x, z);
+    const tangent = sample.tangent;
+    const px = sample.point.x - tangent.x * 4.0;
+    const pz = sample.point.y - tangent.y * 4.0;
+    const y = terrainY(px, pz) + 1.7;
+    return {
+      name,
+      position: [px, y, pz],
+      lookAt: [sample.point.x + tangent.x * 28.0, terrainY(sample.point.x + tangent.x * 28.0, sample.point.y + tangent.y * 28.0) + 1.3, sample.point.y + tangent.y * 28.0],
+      groundY: terrainY(px, pz),
+      kind: 'ground',
+    };
+  };
+  return [
+    roadPose(-105, 138, 'road-ground'),
+    {
+      name: 'hills-sky',
+      position: [-90, 76, 128],
+      lookAt: [0, 34, -170],
+      groundY: terrainY(-90, 128),
+      kind: 'overview',
+    },
+    {
+      name: 'valley-overview',
+      position: [-118, 82, 178],
+      lookAt: [0, 7, 0],
+      groundY: terrainY(-118, 178),
+      kind: 'overview',
+    },
+    roadPose(-105, 138, 'toward-sun'),
+  ];
+});
+const shotReport = [];
+for (const viewpoint of viewpoints) {
+  const { name, position, lookAt, groundY, kind } = viewpoint;
+  const [x, y, z] = position;
+  if (Math.abs(x) > 300 || Math.abs(z) > 300 || y < 1 || y > 150) {
+    throw new Error(`Invalid camera pose ${name}: ${JSON.stringify(viewpoint)}`);
+  }
+  if (kind === 'ground' && Math.abs(y - (groundY + 1.7)) > 0.05) {
+    throw new Error(`Ground camera height mismatch ${name}: y=${y} ground=${groundY}`);
+  }
   await page.evaluate(([p, target]) => {
     window.__fixedCameraPose = {
       position: p,
@@ -32,6 +71,10 @@ for (const [name, position, lookAt] of viewpoints) {
   }, [position, lookAt]);
   await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(out, `${name}.png`) });
+  shotReport.push({
+    name, position, lookAt, terrainHeight: groundY, kind,
+    render: await page.evaluate(() => window.__game.info()),
+  });
 }
 const perf = await page.evaluate(() => new Promise((resolve) => {
   let frames = 0;
@@ -43,7 +86,14 @@ const perf = await page.evaluate(() => new Promise((resolve) => {
   }
   requestAnimationFrame(tick);
 }));
-const result = { errors, warnings, consoleErrors: await page.evaluate(() => window.__consoleErrors || []), info: await page.evaluate(() => window.__game.info()), perf };
+const result = {
+  errors, warnings,
+  consoleErrors: await page.evaluate(() => window.__consoleErrors || []),
+  info: await page.evaluate(() => window.__game.info()),
+  radiance: await page.evaluate(() => window.__game.sky.radianceDiagnostics()),
+  shots: shotReport,
+  perf,
+};
 fs.writeFileSync(path.join(out, 'report.json'), JSON.stringify(result, null, 2));
 await browser.close();
 if (errors.length || result.consoleErrors.length || warnings.length) {

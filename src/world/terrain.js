@@ -138,6 +138,8 @@ export function createTerrain(renderer, textures, mode = 'beauty') {
         pos.setY(i, heightAt(x, z));
       }
       geometry.computeVertexNormals();
+      geometry.computeBoundingBox();
+      geometry.computeBoundingSphere();
       const mesh = new THREE.Mesh(geometry, material);
       mesh.receiveShadow = true;
       mesh.name = `terrain-chunk-${cx}-${cz}-${segments}`;

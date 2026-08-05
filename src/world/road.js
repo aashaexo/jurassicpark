@@ -36,7 +36,7 @@ export function roadInfluence(x, z) {
   return THREE.MathUtils.smoothstep(width + 8.0, width - 2.0, sample.distance);
 }
 
-export function createRoad(terrain) {
+export function createRoad(terrain, textures = null) {
   const group = new THREE.Group();
   group.name = 'graded-jeep-road';
   const segments = 120;
@@ -71,6 +71,9 @@ export function createRoad(terrain) {
     color: 0x56351e,
     roughness: 0.92,
     metalness: 0,
+    map: textures?.dirt?.map || null,
+    normalMap: textures?.dirt?.normalMap || null,
+    normalScale: new THREE.Vector2(0.45, 0.45),
   });
   const road = new THREE.Mesh(geometry, material);
   road.receiveShadow = true;

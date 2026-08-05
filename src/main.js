@@ -3,7 +3,7 @@ import { Sky } from './render/sky.js';
 import { createGrade } from './render/grade.js';
 import { bakeGroundTextures } from './world/groundTex.js';
 import { createTerrain } from './world/terrain.js';
-import { createRoad } from './world/road.js';
+import { createRoad, roadSample } from './world/road.js';
 import { PlayerController } from './player/controller.js';
 
 const canvas = document.querySelector('#view');
@@ -37,7 +37,7 @@ const tier = queryTier || (probe.maxTextureSize >= 8192 && window.devicePixelRat
 const quality = {
   low: { dpr: 1, shadows: 1024, fog: 0.0026 },
   medium: { dpr: 1.35, shadows: 1536, fog: 0.0021 },
-  high: { dpr: 1.65, shadows: 2048, fog: 0.0018 },
+  high: { dpr: 1.65, shadows: 2048, fog: 0.0035 },
 }[tier] || { dpr: 1.35, shadows: 1536, fog: 0.0021 };
 
 const scene = new THREE.Scene();
@@ -58,7 +58,7 @@ if (mode !== 'normal') {
 const textures = mode === 'normal' || mode === 'white' ? null : bakeGroundTextures(renderer, tier);
 const terrain = createTerrain(renderer, textures, mode);
 scene.add(terrain.group);
-if (mode !== 'normal') scene.add(createRoad(terrain));
+if (mode !== 'normal') scene.add(createRoad(terrain, textures));
 if (mode === 'sky') terrain.group.visible = false;
 
 const sun = new THREE.DirectionalLight(0xffc58e, 8.0);
@@ -141,7 +141,9 @@ function animate() {
     camera.lookAt(...window.__fixedCameraPose.lookAt);
     player.position.set(...window.__fixedCameraPose.position);
   }
-  sun.position.copy(player.position).addScaledVector(sky.sunDirection, -260);
+  // The sky vector points from the ground toward the sun. Keep the
+  // directional light above the horizon rather than placing it underground.
+  sun.position.copy(player.position).addScaledVector(sky.sunDirection, 260);
   sun.target.position.copy(player.position);
   sun.target.updateMatrixWorld();
   renderer.setRenderTarget(hdr);
@@ -164,7 +166,7 @@ function animate() {
 animate();
 
 window.__game = {
-  renderer, scene, camera, player, terrain, sky, tier, mode,
+  renderer, scene, camera, player, terrain, sky, tier, mode, roadSample,
   info: () => ({ fps, calls: sceneCalls, triangles: sceneTriangles }),
 };
 window.__sceneReady = true;
