@@ -292,6 +292,7 @@ class Game {
       turntable: this.dinoName,
       debugNormals: this.dinoDebug === 'normal',
     });
+    this.terrain.camera = this.camera;
     this.creatures = this.dinosaurs;
     scene.add(this.dinosaurs.root);
     this.gate = new JurassicGate(this.terrain);

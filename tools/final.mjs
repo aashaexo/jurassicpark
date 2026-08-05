@@ -18,7 +18,7 @@ const shots = [
 ];
 for (const [name] of shots) fs.rmSync(path.join(out, name), { force: true });
 const start = Date.now();
-await run({ width: 1280, height: 720, hash: 'manual&tier=high&park=1' }, async ({ page }) => {
+await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page }) => {
   console.log('warming renderer and vegetation buckets');
   await page.waitForTimeout(3000);
   for (const [name, subjectKind, pos, target] of shots) {

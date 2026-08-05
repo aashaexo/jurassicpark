@@ -210,6 +210,19 @@ export class CreatureRig {
     this.bones = {};
     if (species === 'brachiosaurus') this._buildImplicitBrachiosaurus();
     else this._buildImplicitSpecies(species);
+    if (species === 'dilophosaurus') {
+      this.frill = new THREE.Mesh(
+        new THREE.CircleGeometry(0.9, 16),
+        new THREE.MeshStandardMaterial({
+          color: 0x8b4a32, roughness: 0.85, side: THREE.DoubleSide,
+        }),
+      );
+      this.frill.name = 'dilophosaurus-erectile-frill';
+      this.frill.position.set(0, 3.85, 1.95);
+      this.frill.rotation.x = Math.PI * 0.5;
+      this.frill.scale.set(0.12, 1, 1);
+      this.group.add(this.frill);
+    }
     this._groundY = 0;
   }
 
@@ -548,7 +561,27 @@ export class DinosaurSystem {
 
   update(dt) {
     this.time += dt;
-    for (const dino of this.creatures) dino.update(dt, { walk: false });
+    const flock = this.creatures.filter(c => c.species === 'gallimimus');
+    if (flock.length > 1) {
+      const center = new THREE.Vector3();
+      for (const dino of flock) center.add(dino.group.position);
+      center.multiplyScalar(1 / flock.length);
+      for (const dino of flock) {
+        const pull = center.clone().sub(dino.group.position).multiplyScalar(0.006);
+        dino.group.position.x += pull.x;
+        dino.group.position.z += pull.z;
+      }
+    }
+    for (const dino of this.creatures) {
+      dino.update(dt, { walk: dino.species === 'gallimimus' || dino.species === 'trex' });
+      if (dino.frill) {
+        const camera = this.terrain.camera;
+        const dx = camera ? dino.group.position.x - camera.position.x : 999;
+        const dz = camera ? dino.group.position.z - camera.position.z : 999;
+        const open = Math.hypot(dx, dz) < 6;
+        dino.frill.scale.x += ((open ? 1 : 0.12) - dino.frill.scale.x) * Math.min(1, dt * 8);
+      }
+    }
     if (!this.turntable && this.audio &&
         Math.floor(this.time) !== Math.floor(this.time - dt) &&
         Math.floor(this.time) % 14 === 0) {
