@@ -328,7 +328,13 @@ class Game {
         new THREE.MeshStandardMaterial({ color: 0x918a73, roughness: 1 }),
       );
       ground.rotation.x = -Math.PI / 2;
-      ground.position.y = this.terrain.height(7, -304);
+      if (this.dinoName) {
+        const dinoMesh = this.dinosaurs.creatures[0].mesh;
+        dinoMesh.geometry.computeBoundingBox();
+        ground.position.y = dinoMesh.geometry.boundingBox.min.y;
+      } else {
+        ground.position.y = this.terrain.height(7, -304);
+      }
       ground.receiveShadow = true;
       ground.name = this.parkStudio ? 'park-gate-studio-ground' : 'dinosaur-turntable-ground';
       scene.add(ground);

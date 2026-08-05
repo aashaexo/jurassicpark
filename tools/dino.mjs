@@ -50,6 +50,14 @@ await run({
     g.setPaused(true);
     g.renderOnce();
   }, mode);
+  await page.evaluate(() => {
+    const g = window.__game;
+    const mesh = g.dinosaurs.creatures[0].mesh;
+    mesh.geometry.computeBoundingBox();
+    const ground = g.scene.getObjectByName('dinosaur-turntable-ground');
+    const delta = Math.abs(ground.position.y - mesh.geometry.boundingBox.min.y);
+    if (delta >= 0.01) throw new Error(`studio ground mismatch: ${delta}`);
+  });
   await assertMode(debug);
   const frames = [];
   const coverage = {};
