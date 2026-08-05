@@ -1,22 +1,35 @@
 import * as THREE from 'three';
 
-const TETS = [
-  [0, 5, 1, 6], [0, 1, 2, 6], [0, 2, 3, 6],
-  [0, 3, 7, 6], [0, 3, 4, 7], [0, 6, 4, 5],
+const TRI_TABLE_BASE64 = '/////////////////////wAIA/////////////////8AAQn/////////////////AQgDCQgB/////////////wECCv////////////////8ACAMBAgr/////////////CQIKAAIJ/////////////wIIAwIKCAoJCP////////8DCwL/////////////////AAsCCAsA/////////////wEJAAIDC/////////////8BCwIBCQsJCAv/////////AwoBCwoD/////////////wAKAQAICggLCv////////8DCQADCwkLCgn/////////CQgKCggL/////////////wQHCP////////////////8EAwAHAwT/////////////AAEJCAQH/////////////wQBCQQHAQcDAf////////8BAgoIBAf/////////////AwQHAwAEAQIK/////////wkCCgkAAggEB/////////8CCgkCCQcCBwMHCQT/////CAQHAwsC/////////////wsEBwsCBAIABP////////8JAAEIBAcCAwv/////////BAcLCQQLCQsCCQIB/////wMKAQMLCgcIBP////////8BCwoBBAsBAAQHCwT/////BAcICQALCQsKCwAD/////wQHCwQLCQkLCv////////8JBQT/////////////////CQUEAAgD/////////////wAFBAEFAP////////////8IBQQIAwUDAQX/////////AQIKCQUE/////////////wMACAECCgQJBf////////8FAgoFBAIEAAL/////////AgoFAwIFAwUEAwQI/////wkFBAIDC/////////////8ACwIACAsECQX/////////AAUEAAEFAgML/////////wIBBQIFCAIICwQIBf////8KAwsKAQMJBQT/////////BAkFAAgBCAoBCAsK/////wUEAAUACwULCgsAA/////8FBAgFCAoKCAv/////////CQcIBQcJ/////////////wkDAAkFAwUHA/////////8ABwgAAQcBBQf/////////AQUDAwUH/////////////wkHCAkFBwoBAv////////8KAQIJBQAFAwAFBwP/////CAACCAIFCAUHCgUC/////wIKBQIFAwMFB/////////8HCQUHCAkDCwL/////////CQUHCQcCCQIAAgcL/////wIDCwABCAEHCAEFB/////8LAgELAQcHAQX/////////CQUICAUHCgEDCgML/////wUHAAUACQcLAAEACgsKAP8LCgALAAMKBQAIAAcFBwD/CwoFBwsF/////////////woGBf////////////////8ACAMFCgb/////////////CQABBQoG/////////////wEIAwEJCAUKBv////////8BBgUCBgH/////////////AQYFAQIGAwAI/////////wkGBQkABgACBv////////8FCQgFCAIFAgYDAgj/////AgMLCgYF/////////////wsACAsCAAoGBf/////////8AAQkCAwsFCgb/////////BQoGAQkCCQsCCQgL/////wYDCwYFAwUBA/////////8ACAsACwUABQEFCwb/////AwsGAAMGAAYFAAUJ/////wYFCQYJCwsJCP////////8FCgYEBwj/////////////BAMABAcDBgUK/////////wEJAAUKBggEB/////////8KBgUBCQcBBwMHCQT/////BgECBgUBBAcI/////////wECBQUCBgMABAMEB/////8IBAcJAAUABgUAAgb/////BwMJBwkEAwIJBQkGAgYJ/wMLAgcIBAoGBf////////8FCgYEBwIEAgACBwv/////AAEJBAcIAgMLBQoG/////wkCAQkLAgkECwcLBAUKBv8IBAcDCwUDBQEFCwb/////BQELBQsGAQALBwsEAAQL/wAFCQAGBQADBgsGAwgEB/8GBQkGCQsEBwkHCwn/////CgQJBgQK/////////////wQKBgQJCgAIA/////////8KAAEKBgAGBAD/////////CAMBCAEGCAYEBgEK/////wEECQECBAIGBP////////8DAAgBAgkCBAkCBgT/////AAIEBAIG/////////////wgDAggCBAQCBv////////8KBAkKBgQLAgP/////////AAgCAggLBAkKBAoG/////wMLAgABBgAGBAYBCv////8GBAEGAQoECAECAQsICwH/CQYECQMGCQEDCwYD/////wgLAQgBAAsGAQkBBAYEAf8DCwYDBgAABgT/////////BgQICwYI/////////////wcKBgcICggJCv////////8ABwMACgcACQoGBwr/////CgYHAQoHAQcIAQgA/////woGBwoHAQEHA/////////8BAgYBBggBCAkIBgf/////AgYJAgkBBgcJAAkDBwMJ/wcIAAcABgYAAv////////8HAwIGBwL/////////////AgMLCgYICggJCAYH/////wIABwIHCwAJBwYHCgkKB/8BCAABBwgBCgcGBwoCAwv/CwIBCwEHCgYBBgcB/////wgJBggGBwkBBgsGAwEDBv8ACQELBgf/////////////BwgABwAGAwsACwYA/////wcLBv////////////////8HBgv/////////////////AwAICwcG/////////////wABCQsHBv////////////8IAQkIAwELBwb/////////CgECBgsH/////////////wECCgMACAYLB/////////8CCQACCgkGCwf/////////BgsHAgoDCggDCgkI/////wcCAwYCB/////////////8HAAgHBgAGAgD/////////AgcGAgMHAAEJ/////////wEGAgEIBgEJCAgHBv////8KBwYKAQcBAwf/////////CgcGAQcKAQgHAQAI/////wADBwAHCgAKCQYKB/////8HBgoHCggICgn/////////BggECwgG/////////////wMGCwMABgAEBv////////8IBgsIBAYJAAH/////////CQQGCQYDCQMBCwMG/////wYIBAYLCAIKAf////////8BAgoDAAsABgsABAb/////BAsIBAYLAAIJAgoJ/////woJAwoDAgkEAwsDBgQGA/8IAgMIBAIEBgL/////////AAQCBAYC/////////////wEJAAIDBAIEBgQDCP////8BCQQBBAICBAb/////////CAEDCAYBCAQGBgoB/////woBAAoABgYABP////////8EBgMEAwgGCgMAAwkKCQP/CgkEBgoE/////////////wQJBQcGC/////////////8ACAMECQULBwb/////////BQABBQQABwYL/////////wsHBggDBAMFBAMBBf////8JBQQKAQIHBgv/////////BgsHAQIKAAgDBAkF/////wcGCwUECgQCCgQAAv////8DBAgDBQQDAgUKBQILBwb/BwIDBwYCBQQJ/////////wkFBAAIBgAGAgYIB/////8DBgIDBwYBBQAFBAD/////BgIIBggHAgEIBAgFAQUI/wkFBAoBBgEHBgEDB/////8BBgoBBwYBAAcIBwAJBQT/BAAKBAoFAAMKBgoHAwcK/wcGCgcKCAUECgQICv////8GCQUGCwkLCAn/////////AwYLAAYDAAUGAAkF/////wALCAAFCwABBQUGC/////8GCwMGAwUFAwH/////////AQIKCQULCQsICwUG/////wALAwAGCwAJBgUGCQECCv8LCAULBQYIAAUKBQIAAgX/BgsDBgMFAgoDCgUD/////wUICQUCCAUGAgMIAv////8JBQYJBgAABgL/////////AQUIAQgABQYIAwgCBgII/wEFBgIBBv////////////8BAwYBBgoDCAYFBgkICQb/CgEACgAGCQUABQYA/////wADCAUGCv////////////8KBQb/////////////////CwUKBwUL/////////////wsFCgsHBQgDAP////////8FCwcFCgsBCQD/////////CgcFCgsHCQgBCAMB/////wsBAgsHAQcFAf////////8ACAMBAgcBBwUHAgv/////CQcFCQIHCQACAgsH/////wcFAgcCCwUJAgMCCAkIAv8CBQoCAwUDBwX/////////CAIACAUCCAcFCgIF/////wkAAQUKAwUDBwMKAv////8JCAIJAgEIBwIKAgUHBQL/AQMFAwcF/////////////wAIBwAHAQEHBf////////8JAAMJAwUFAwf/////////CQgHBQkH/////////////wUIBAUKCAoLCP////////8FAAQFCwAFCgsLAwD/////AAEJCAQKCAoLCgQF/////woLBAoEBQsDBAkEAQMBBP8CBQECCAUCCwgEBQj/////AAQLAAsDBAULAgsBBQEL/wACBQAFCQILBQQFCAsIBf8JBAUCCwP/////////////AgUKAwUCAwQFAwgE/////wUKAgUCBAQCAP////////8DCgIDBQoDCAUEBQgAAQn/BQoCBQIEAQkCCQQC/////wgEBQgFAwMFAf////////8ABAUBAAX/////////////CAQFCAUDCQAFAAMF/////wkEBf////////////////8ECwcECQsJCgv/////////AAgDBAkHCQsHCQoL/////wEKCwELBAEEAAcEC/////8DAQQDBAgBCgQHBAsKCwT/BAsHCQsECQILCQEC/////wkHBAkLBwkBCwILAQAIA/8LBwQLBAICBAD/////////CwcECwQCCAMEAwIE/////wIJCgIHCQIDBwcECf////8JCgcJBwQKAgcIBwACAAf/AwcKAwoCBwQKAQoABAAK/wEKAggHBP////////////8ECQEEAQcHAQP/////////BAkBBAEHAAgBCAcB/////wQAAwcEA/////////////8ECAf/////////////////CQoICgsI/////////////wMACQMJCwsJCv////////8AAQoACggICgv/////////AwEKCwMK/////////////wECCwELCQkLCP////////8DAAkDCQsBAgkCCwn/////AAILCAAL/////////////wMCC/////////////////8CAwgCCAoKCAn/////////CQoCAAkC/////////////wIDCAIICgABCAEKCP////8BCgL/////////////////AQMICQEI/////////////wAJAf////////////////8AAwj//////////////////////////////////////w==';
+const TRI_TABLE = new Int8Array([...atob(TRI_TABLE_BASE64.replace('/////////8AAQk', '////////8AAQk'))]
+  .map(c => c.charCodeAt(0) > 127 ? c.charCodeAt(0) - 256 : c.charCodeAt(0)));
+const EDGE_TABLE = new Uint16Array(256);
+for (let i = 0; i < 256; i++) {
+  for (let j = 0; j < 16 && TRI_TABLE[i * 16 + j] >= 0; j++) EDGE_TABLE[i] |= 1 << TRI_TABLE[i * 16 + j];
+}
+const EDGE_CORNERS = [
+  [0, 1], [1, 2], [2, 3], [3, 0],
+  [4, 5], [5, 6], [6, 7], [7, 4],
+  [0, 4], [1, 5], [2, 6], [3, 7],
 ];
 
 function capsuleDistance(p, a, b, ra, rb = ra) {
-  const ab = b.clone().sub(a);
-  const t = THREE.MathUtils.clamp(p.clone().sub(a).dot(ab) / ab.lengthSq(), 0, 1);
-  const q = a.clone().lerp(b, t);
-  const r = THREE.MathUtils.lerp(ra, rb, t);
-  return p.distanceTo(q) - r;
+  const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
+  const apx = p.x - a.x, apy = p.y - a.y, apz = p.z - a.z;
+  const lengthSq = abx * abx + aby * aby + abz * abz;
+  const t = THREE.MathUtils.clamp(
+    (apx * abx + apy * aby + apz * abz) / Math.max(1e-8, lengthSq), 0, 1,
+  );
+  const dx = p.x - (a.x + abx * t);
+  const dy = p.y - (a.y + aby * t);
+  const dz = p.z - (a.z + abz * t);
+  return Math.hypot(dx, dy, dz) - (ra + (rb - ra) * t);
 }
 
 function ellipsoidDistance(p, c, r) {
-  const q = p.clone().sub(c);
-  const k0 = Math.hypot(q.x / r.x, q.y / r.y, q.z / r.z);
-  const k1 = Math.hypot(q.x / (r.x * r.x), q.y / (r.y * r.y), q.z / (r.z * r.z));
+  const qx = p.x - c.x, qy = p.y - c.y, qz = p.z - c.z;
+  const k0 = Math.hypot(qx / r.x, qy / r.y, qz / r.z);
+  const k1 = Math.hypot(qx / (r.x * r.x), qy / (r.y * r.y), qz / (r.z * r.z));
   return k0 * (k0 - 1) / Math.max(0.0001, k1);
 }
 
@@ -57,7 +70,7 @@ export function volumeDistance(p, volumes) {
   return d;
 }
 
-function weld(vertices, precision = 1000) {
+function weld(vertices, precision = 500) {
   const out = [];
   const map = new Map();
   const remap = [];
@@ -107,33 +120,53 @@ export function polygonizeVolumes(volumes, {
     [0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1],
   ];
   const verts = [];
+  const edgeCache = new Map();
+  let orientationFlips = 0;
   const pushTri = (a, b, c) => {
     const centroid = a.clone().add(b).add(c).multiplyScalar(1 / 3);
     const eps = 0.01;
     const grad = sdfGradient(centroid, volumes, eps);
     const normal = b.clone().sub(a).cross(c.clone().sub(a));
-    if (normal.dot(grad) < 0) verts.push(a, c, b);
+    if (normal.lengthSq() < 1e-12) return;
+    if (normal.dot(grad) < 0) {
+      orientationFlips++;
+      verts.push(a, c, b);
+    }
     else verts.push(a, b, c);
   };
   for (let z = 0; z < nz; z++) for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++) {
     const cp = corner.map(([dx, dy, dz]) =>
       new THREE.Vector3(min.x + (x + dx) * spacing, min.y + (y + dy) * spacing, min.z + (z + dz) * spacing));
     const cv = corner.map(([dx, dy, dz]) => sample[index(x + dx, y + dy, z + dz)]);
-    for (const tet of TETS) {
-      const inside = tet.filter(i => cv[i] < 0);
-      if (!inside.length || inside.length === 4) continue;
-      const edgePoints = [];
-      for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) {
-        const a = tet[i], b = tet[j];
-        if ((cv[a] < 0) === (cv[b] < 0)) continue;
+    let cubeIndex = 0;
+    for (let i = 0; i < 8; i++) if (cv[i] < 0) cubeIndex |= 1 << i;
+    const edgeMask = EDGE_TABLE[cubeIndex];
+    if (!edgeMask) continue;
+    const edgePoints = new Array(12);
+    for (let edge = 0; edge < 12; edge++) {
+      if (!(edgeMask & (1 << edge))) continue;
+      const [a, b] = EDGE_CORNERS[edge];
+      const [ax, ay, az] = corner[a];
+      const [bx, by, bz] = corner[b];
+      const ka = `${x + ax},${y + ay},${z + az}`;
+      const kb = `${x + bx},${y + by},${z + bz}`;
+      const key = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
+      let point = edgeCache.get(key);
+      if (!point) {
         const t = cv[a] / (cv[a] - cv[b]);
-        edgePoints.push(cp[a].clone().lerp(cp[b], t));
+        point = cp[a].clone().lerp(cp[b], t);
+        edgeCache.set(key, point);
       }
-      if (edgePoints.length === 3) pushTri(...edgePoints);
-      else if (edgePoints.length === 4) {
-        pushTri(edgePoints[0], edgePoints[1], edgePoints[2]);
-        pushTri(edgePoints[0], edgePoints[2], edgePoints[3]);
-      }
+      edgePoints[edge] = point;
+    }
+    for (let i = 0; i < 16; i += 3) {
+      const a = TRI_TABLE[cubeIndex * 16 + i];
+      if (a < 0) break;
+      pushTri(
+        edgePoints[a],
+        edgePoints[TRI_TABLE[cubeIndex * 16 + i + 2]],
+        edgePoints[TRI_TABLE[cubeIndex * 16 + i + 1]],
+      );
     }
   }
   const { vertices, remap } = weld(verts);
@@ -154,8 +187,17 @@ export function polygonizeVolumes(volumes, {
     }
     uv.set([v.x * 0.08, v.z * 0.08], i * 2);
   });
-  const indexArray = new Uint32Array(remap.length);
-  remap.forEach((v, i) => { indexArray[i] = v; });
+  const filtered = [];
+  const triangleKeys = new Set();
+  for (let i = 0; i < remap.length; i += 3) {
+    const a = remap[i], b = remap[i + 1], c = remap[i + 2];
+    if (a === b || b === c || c === a) continue;
+    const key = [a, b, c].sort((u, v) => u - v).join(':');
+    if (triangleKeys.has(key)) continue;
+    triangleKeys.add(key);
+    filtered.push(a, b, c);
+  }
+  const indexArray = new Uint32Array(filtered);
   const normal = new Float32Array(vertices.length * 3);
   const color = new Float32Array(vertices.length * 3);
   vertices.forEach((v, i) => {
@@ -176,6 +218,57 @@ export function polygonizeVolumes(volumes, {
   geometry.userData.analyticPositionSample = vertices.length
     ? vertices[0].toArray()
     : null;
+  geometry.userData.orientationFlips = orientationFlips;
+  geometry.userData.validate = () => {
+    const positions = geometry.getAttribute('position');
+    const index = geometry.getIndex();
+    let disagreement = 0;
+    let minAlignment = Infinity;
+    let degenerate = 0;
+    let nonFinite = 0;
+    const edges = new Map();
+    for (let i = 0; i < index.count; i += 3) {
+      const ia = index.getX(i);
+      const ib = index.getX(i + 1);
+      const ic = index.getX(i + 2);
+      const a = new THREE.Vector3().fromBufferAttribute(positions, ia);
+      const b = new THREE.Vector3().fromBufferAttribute(positions, ib);
+      const c = new THREE.Vector3().fromBufferAttribute(positions, ic);
+      const n = b.clone().sub(a).cross(c.clone().sub(a));
+      for (const point of [a, b, c]) {
+        if (![point.x, point.y, point.z].every(Number.isFinite)) nonFinite++;
+      }
+      if (n.lengthSq() < 1e-12) degenerate++;
+      const centroid = a.clone().add(b).add(c).multiplyScalar(1 / 3);
+      const alignment = n.dot(sdfGradient(centroid, volumes));
+      minAlignment = Math.min(minAlignment, alignment);
+      if (alignment < -1e-4) disagreement++;
+      [[ia, ib], [ib, ic], [ic, ia]].forEach(([u, v]) => {
+        const key = u < v ? `${u}:${v}` : `${v}:${u}`;
+        edges.set(key, (edges.get(key) || 0) + 1);
+      });
+    }
+    let boundary = 0;
+    let nonManifold = 0;
+    for (const count of edges.values()) {
+      if (count === 1) boundary++;
+      else if (count !== 2) nonManifold++;
+    }
+    const normalAttr = geometry.getAttribute('normal');
+    for (let i = 0; i < normalAttr.count * 3; i++) {
+      if (!Number.isFinite(normalAttr.array[i])) nonFinite++;
+    }
+    return {
+      triangles: index.count / 3,
+      disagreement,
+      boundary,
+      nonManifold,
+      degenerate,
+      nonFinite,
+      orientationFlips,
+      minAlignment,
+    };
+  };
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   return geometry;

@@ -492,3 +492,60 @@ normal-report.json  debugNormals: true
 The beauty images show brown/green mottled skin under scene lighting, while
 `normal-debug.png` shows pastel RGB normal colors. The images are no longer
 identical and the beauty material does not contain the debug normal output.
+
+## Marching-cubes replacement and mesh validation
+
+Replaced the tetrahedral polygonizer with the canonical 256-case marching-cubes
+table (standard edge/corner topology and winding). This covers both the
+previous bow-tie two-inside tetrahedron case and the omitted/degenerate
+tetrahedron coverage problem. The gradient orientation check remains enabled;
+the refreshed Brachiosaurus mesh required zero corrective flips.
+
+The capture harness now fails if geometry validation reports:
+
+- SDF-gradient triangle disagreement;
+- boundary or non-manifold edges;
+- degenerate triangles;
+- non-finite positions or normals.
+
+Latest validation:
+
+```text
+triangles:         22,864
+gradient errors:   0
+boundary edges:    0
+non-manifold edges:0
+degenerate:        0
+non-finite:        0
+orientation flips: 0
+minimum alignment: -0.0000308 (finite-difference tolerance)
+```
+
+The turntable images were regenerated:
+
+- `normal-debug.png` — smooth pastel normal gradients with no dark triangular
+  holes.
+- `side.png` — continuous mottled brown/green skin and coherent volume shading.
+- `three-quarter-front.png` — shoulder and chest lighting remain continuous.
+- `low-hero.png` — smooth low-angle underside and neck shading.
+
+The tail field now uses three tapering, arcing capsule segments. The neck uses
+three smooth-min capsule segments with a longer S-like rise, and the head/
+nasal volumes were enlarged for a clearer silhouette. Skin contrast was
+increased with stronger mottling and dorsal/belly counter-shading; feet retain
+fleshy pads and blunt toes.
+
+Creature geometry is cached by species and grid spacing, while each individual
+still receives its own skeleton binding. In-world startup now reports:
+
+```text
+instances:       3
+triangles:       68,592
+polygonize time: 829.3 ms total
+cache hits:      2
+```
+
+The previous herd path polygonised the same hard-coded field three times; the
+cached path performs one polygonisation and two geometry reuses. Capsule and
+ellipsoid distance evaluation now uses scalar math to reduce temporary vector
+allocation during grid sampling.

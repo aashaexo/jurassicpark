@@ -339,7 +339,7 @@ class Game {
     for (const m of [this.terrainMat, this.veg.leafMat, this.veg.woodMat,
                      this.ruins.material, ...this.water.materials,
                      ...this.body.materials, ...this.dinosaurs.creatures.map(c => c.material)]) {
-      if (m.userData && (m.userData.debugNormals || m.userData.skipCanopy)) continue;
+      if (m.userData && m.userData.debugNormals) continue;
       patchCanopyLight(m, this.canopy);
     }
 

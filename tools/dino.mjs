@@ -83,6 +83,7 @@ await run({
   const stats = await page.evaluate(() => ({
     dino: window.__game.dinosaurs.stats(),
     render: window.__game.info(),
+    validation: window.__game.dinosaurs.creatures[0].mesh.geometry.userData.validate(),
     normal: (() => {
       const a = window.__game.dinosaurs.creatures[0].mesh.geometry.attributes.normal.array;
       let nan = 0, min = Infinity, max = -Infinity;
@@ -99,6 +100,10 @@ await run({
       };
     })(),
   }));
+  const v = stats.validation;
+  if (v.disagreement || v.boundary || v.nonManifold || v.degenerate || v.nonFinite) {
+    throw new Error(`invalid creature mesh: ${JSON.stringify(v)}`);
+  }
   fs.writeFileSync(path.join(out, debug ? 'normal-report.json' : 'report.json'), JSON.stringify({
     species: name, debugNormals: debug, frames, stats, errors: errs,
   }, null, 2));

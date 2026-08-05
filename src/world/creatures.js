@@ -8,6 +8,8 @@
 import * as THREE from 'three';
 import { polygonizeVolumes } from './metaball.js';
 
+const GEOMETRY_CACHE = new Map();
+
 const TAU = Math.PI * 2;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -19,13 +21,13 @@ function skinTexture(seed = 1) {
       const p = Math.sin((x + seed * 19) * 0.075) *
         Math.sin((y - seed * 13) * 0.091) +
         0.3 * Math.sin((x + y) * 0.43 + seed);
-      const scale = 0.82 + 0.12 * p;
+      const scale = 0.68 + 0.30 * p;
       const belly = y / size;
-      const dorsal = 1 - belly * 0.20;
+      const dorsal = 0.72 + belly * 0.38;
       const i = (y * size + x) * 4;
-      data[i] = clamp(155 * scale * dorsal, 0, 255);
-      data[i + 1] = clamp(142 * scale * dorsal + belly * 12, 0, 255);
-      data[i + 2] = clamp(94 * scale * dorsal + belly * 14, 0, 255);
+      data[i] = clamp(128 * scale * dorsal + belly * 34, 0, 255);
+      data[i + 1] = clamp(116 * scale * dorsal + belly * 42, 0, 255);
+      data[i + 2] = clamp(72 * scale * dorsal + belly * 36, 0, 255);
       data[i + 3] = 255;
     }
   }
@@ -57,13 +59,17 @@ function materialFor(seed, debugNormals = false) {
   });
   material.onBeforeCompile = shader => {
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vCreatureWorld;')
-      .replace('#include <begin_vertex>',
-        '#include <begin_vertex>\nvCreatureWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      .replace('#include <common>',
+        '#include <common>\nvarying vec3 vCreatureWorld;\nvarying vec3 vCreatureNormalWorld;')
+      .replace('#include <worldpos_vertex>',
+        '#include <worldpos_vertex>\nvCreatureWorld = worldPosition.xyz;')
+      .replace('#include <defaultnormal_vertex>',
+        '#include <defaultnormal_vertex>\nvCreatureNormalWorld = normalize(mat3(modelMatrix) * transformedNormal);');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vCreatureWorld;')
+      .replace('#include <common>',
+        '#include <common>\nvarying vec3 vCreatureWorld;\nvarying vec3 vCreatureNormalWorld;')
       .replace('#include <map_fragment>', `
-        vec3 creatureN = abs(normalize(vNormal));
+        vec3 creatureN = abs(normalize(vCreatureNormalWorld));
         creatureN /= max(0.001, creatureN.x + creatureN.y + creatureN.z);
         vec3 creatureMap = texture2D(map, vCreatureWorld.yz * 0.09).rgb * creatureN.x
           + texture2D(map, vCreatureWorld.xz * 0.09).rgb * creatureN.y
@@ -72,10 +78,7 @@ function materialFor(seed, debugNormals = false) {
       `);
   };
   material.customProgramCacheKey = () => 'dino-skin-triplanar-v4';
-  material.userData.skipCanopy = true;
   material.side = THREE.FrontSide;
-  material.customProgramCacheKey = () =>
-    debugNormals ? 'creature-normal-debug-v1' : 'creature-triplanar-v2';
   return material;
 }
 
@@ -257,8 +260,12 @@ export class CreatureRig {
       E([0, 5.0, -0.3], [1.65, 2.0, 3.5], 0.6),
       E([0, 5.65, -2.55], [1.75, 1.65, 1.7], 0.65),
       E([0, 4.55, 1.45], [1.75, 1.55, 1.9], 0.65),
-      C([0, 4.35, 3.7], [0, 4.55, 9.8], 0.82, 0.12, 0.3),
-      C([0, 6.0, -2.8], [0, 12.0, -6.25], 1.05, 0.38, 0.34),
+      C([0, 4.35, 3.7], [0, 4.45, 6.2], 0.82, 0.52, 0.34),
+      C([0, 4.45, 6.2], [0, 4.7, 8.5], 0.52, 0.24, 0.24),
+      C([0, 4.7, 8.5], [0, 4.62, 10.8], 0.24, 0.12, 0.16),
+      C([0, 6.0, -2.8], [0, 8.0, -4.15], 1.05, 0.84, 0.38),
+      C([0, 8.0, -4.15], [0, 10.4, -5.35], 0.84, 0.56, 0.3),
+      C([0, 10.4, -5.35], [0, 12.2, -6.4], 0.56, 0.36, 0.24),
       E([0, 12.0, -6.9], [0.7, 0.62, 0.95], 0.3),
       E([0, 12.3, -7.15], [0.58, 0.42, 0.6], 0.18),
       E([0, 11.85, -7.5], [0.5, 0.28, 0.7], 0.14),
@@ -275,11 +282,19 @@ export class CreatureRig {
         ));
       }
     }
-    const geometry = polygonizeVolumes(volumes, {
-      spacing: 0.16,
-      margin: 0.3,
-      boneForPoint,
-    });
+    const cacheKey = `${this.species}:0.16`;
+    const started = performance.now();
+    let geometry = GEOMETRY_CACHE.get(cacheKey);
+    this.polygonizeCached = Boolean(geometry);
+    if (!geometry) {
+      geometry = polygonizeVolumes(volumes, {
+        spacing: 0.16,
+        margin: 0.3,
+        boneForPoint,
+      });
+      GEOMETRY_CACHE.set(cacheKey, geometry);
+    }
+    this.polygonizeMs = performance.now() - started;
     const mesh = new THREE.SkinnedMesh(geometry, this.material);
     mesh.name = 'implicit-brachiosaurus-surface';
     mesh.bind(skeleton);
@@ -347,7 +362,12 @@ export class CreatureRig {
         ? o.geometry.index.count / 3
         : o.geometry.attributes.position.count / 3;
     });
-    return { meshes, triangles };
+    return {
+      meshes,
+      triangles,
+      polygonizeMs: this.polygonizeMs,
+      polygonizeCached: this.polygonizeCached,
+    };
   }
 }
 
@@ -395,7 +415,12 @@ export class DinosaurSystem {
       const s = c.stats();
       out.meshes += s.meshes;
       out.triangles += s.triangles;
+      out.polygonizeMs = (out.polygonizeMs || 0) + (s.polygonizeMs || 0);
+      out.cached = (out.cached || 0) + (s.polygonizeCached ? 1 : 0);
       return out;
-    }, { meshes: 0, triangles: 0, instances: this.creatures.length });
+    }, {
+      meshes: 0, triangles: 0, instances: this.creatures.length,
+      polygonizeMs: 0, cached: 0,
+    });
   }
 }
