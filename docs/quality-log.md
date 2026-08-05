@@ -585,10 +585,10 @@ The current cached implicit species meshes validate as follows:
 | T-Rex | 6,022 | 0 | 0 | 0 | 0 | 4 |
 
 The species are now placed in the world and share the geometry cache. The
-remaining weaknesses are that flock steering, dust, the Dilophosaurus
-proximity frill, and T-Rex audio cues are still simplified. Final cinematic
-capture coverage is also incomplete. No visual acceptance is inferred from
-these numbers; they only describe fresh capture and topology checks.
+remaining weaknesses are that Gallimimus flocking/dust and the Dilophosaurus
+proximity frill are procedural approximations rather than authored animation.
+No visual acceptance is inferred from these numbers; they only describe fresh
+capture and topology checks.
 
 ## Current content pass
 
@@ -600,8 +600,16 @@ alignment, and small foot-dust puffs; these are procedural approximations, not
 an authored animation. Dilophosaurus has a separate proximity-driven frill.
 Trail dressing includes route markers, a park map board, and crates.
 
+Fresh verification after this pass:
+
+```text
+node tools/final.mjs        — all nine final captures passed coverage/visibility/vegetation gates
+npm run dino-world          — 18 instances, 19 meshes, 78,020 dinosaur triangles, 13 cache hits
+npm run dump                — 131,434 vegetation instances, 61,698,544 vegetation tris, ok: true
+normal-run probe            — avg renderOnce 14.6 ms, max 30.8 ms, zero captured console errors
+```
+
 Known weaknesses remain: the three non-zero orientation-flip counts above have
-not been eliminated, the tan studio sliver has not been conclusively isolated,
-and a normal-run frame-time/draw-call/error audit is still pending. These
-claims describe implementation and harness results only; they are not visual
-acceptance.
+not been eliminated, and the tan studio sliver has not been conclusively
+isolated. These claims describe implementation and harness results only; they
+are not visual acceptance.
