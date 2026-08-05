@@ -39,41 +39,26 @@ function skinTexture(seed = 1) {
   return texture;
 }
 
-function skinNormalTexture(seed = 1) {
-  const size = 128;
-  const data = new Uint8Array(size * size * 3);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const n = Math.sin((x + seed * 13) * 0.42) *
-        Math.sin((y - seed * 7) * 0.37);
-      const i = (y * size + x) * 3;
-      data[i] = 128 + n * 28;
-      data[i + 1] = 128 - n * 18;
-      data[i + 2] = 255;
-    }
-  }
-  const texture = new THREE.DataTexture(data, size, size, THREE.RGBFormat);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.generateMipmaps = true;
-  texture.needsUpdate = true;
-  return texture;
-}
-
 function materialFor(seed, debugNormals = false) {
+  if (debugNormals) {
+    const material = new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      side: THREE.FrontSide,
+    });
+    material.userData.debugNormals = true;
+    return material;
+  }
   const material = new THREE.MeshStandardMaterial({
     map: skinTexture(seed),
-    normalMap: skinNormalTexture(seed),
     color: 0xd2ba7c,
     roughness: 0.88,
     metalness: 0,
-    normalScale: new THREE.Vector2(0.42, 0.42),
   });
   material.onBeforeCompile = shader => {
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vCreatureWorld;')
-      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvCreatureWorld = worldPosition.xyz;');
+      .replace('#include <begin_vertex>',
+        '#include <begin_vertex>\nvCreatureWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vCreatureWorld;')
       .replace('#include <map_fragment>', `
@@ -85,16 +70,8 @@ function materialFor(seed, debugNormals = false) {
         diffuseColor *= vec4(creatureMap * 1.25, 1.0);
       `);
   };
-  if (debugNormals) {
-    material.map = null;
-    material.normalMap = null;
-    material.customProgramCacheKey = () => 'creature-normal-debug-v1';
-    material.onBeforeCompile = shader => {
-      shader.fragmentShader = shader.fragmentShader
-        .replace('#include <output_fragment>',
-          'gl_FragColor = vec4(normalize(vNormal) * 0.5 + 0.5, 1.0);');
-    };
-  }
+  material.customProgramCacheKey = () => 'creature-triplanar-v3';
+  material.userData.skipCanopy = true;
   material.side = THREE.FrontSide;
   material.customProgramCacheKey = () =>
     debugNormals ? 'creature-normal-debug-v1' : 'creature-triplanar-v2';

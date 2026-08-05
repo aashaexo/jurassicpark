@@ -436,3 +436,33 @@ Honest reads:
 The dead `_buildBrachiosaurus()` loft implementation was removed from
 `src/world/creatures.js`; the implicit builder is now the only active
 Brachiosaurus construction path.
+
+## Brachiosaurus analytic-normal pass
+
+The remaining triangular facet pattern was caused by the polygon mesh carrying
+zero/noisy tessellation normals into lighting and triplanar blending. The
+polygonizer now writes a central-difference SDF gradient as the normal at every
+welded vertex instead of calling `computeVertexNormals()`. A fallback nearest
+volume direction handles the mathematically-flat gradient case.
+
+The material's triplanar projection now uses the smooth normal pipeline and the
+high-frequency procedural normal map was removed. The skin map remains bound
+and is sampled through world-space triplanar coordinates. The normal diagnostic
+is a vertex-color view of the analytic normal attribute, which avoids lighting
+confounding the diagnostic.
+
+Capture reads:
+
+- `normal-debug.png` — broad red/green/blue gradients cover the surface with no
+  triangular mosaic; the analytic normal array contains 121,962 finite values,
+  with a range of approximately `-1..1`.
+- `side.png` — the former light/dark triangular facets are gone; the torso and
+  neck now read as continuous shaded volume with the triplanar skin pattern
+  visible at low contrast.
+- `low-hero.png` — the underside remains smoothly shaded from the low angle,
+  without the previous shard-like normal breaks.
+
+The refreshed captures reported 70,650 creature triangles and no browser or
+console errors. `npm run shoot -- analytic-normal-smoke --tier high --w 640
+--h 360 --t 0.84` reported 348 scene calls and approximately 3.91M visible
+triangles.

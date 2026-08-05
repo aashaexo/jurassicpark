@@ -60,6 +60,21 @@ await run({
   const stats = await page.evaluate(() => ({
     dino: window.__game.dinosaurs.stats(),
     render: window.__game.info(),
+    normal: (() => {
+      const a = window.__game.dinosaurs.creatures[0].mesh.geometry.attributes.normal.array;
+      let nan = 0, min = Infinity, max = -Infinity;
+      for (const v of a) {
+        if (!Number.isFinite(v)) nan++;
+        min = Math.min(min, v); max = Math.max(max, v);
+      }
+      const geometry = window.__game.dinosaurs.creatures[0].mesh.geometry;
+      return {
+        count: a.length, nan, min, max,
+        sample: geometry.userData.analyticNormalSample,
+        position: geometry.userData.analyticPositionSample,
+        first: Array.from(a.slice(0, 6)),
+      };
+    })(),
   }));
   fs.writeFileSync(path.join(out, 'report.json'), JSON.stringify({
     species: name, frames, stats, errors: errs,

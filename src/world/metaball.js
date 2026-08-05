@@ -25,6 +25,27 @@ function smoothMin(a, b, k) {
   return Math.min(a, b) - h * h * h * k / 6;
 }
 
+export function sdfGradient(p, volumes, eps = 0.01) {
+  const dx = volumeDistance(new THREE.Vector3(p.x + eps, p.y, p.z), volumes) -
+    volumeDistance(new THREE.Vector3(p.x - eps, p.y, p.z), volumes);
+  const dy = volumeDistance(new THREE.Vector3(p.x, p.y + eps, p.z), volumes) -
+    volumeDistance(new THREE.Vector3(p.x, p.y - eps, p.z), volumes);
+  const dz = volumeDistance(new THREE.Vector3(p.x, p.y, p.z + eps), volumes) -
+    volumeDistance(new THREE.Vector3(p.x, p.y, p.z - eps), volumes);
+  const gradient = new THREE.Vector3(dx, dy, dz);
+  if (gradient.lengthSq() < 1e-10) {
+    let nearest = null;
+    let distance = Infinity;
+    for (const v of volumes) {
+      const c = v.type === 'ellipsoid' ? v.center : v.a;
+      const d = p.distanceToSquared(c);
+      if (d < distance) { distance = d; nearest = c; }
+    }
+    if (nearest) gradient.copy(p).sub(nearest);
+  }
+  return gradient.normalize();
+}
+
 export function volumeDistance(p, volumes) {
   let d = Infinity;
   for (const v of volumes) {
@@ -89,14 +110,7 @@ export function polygonizeVolumes(volumes, {
   const pushTri = (a, b, c) => {
     const centroid = a.clone().add(b).add(c).multiplyScalar(1 / 3);
     const eps = 0.01;
-    const grad = new THREE.Vector3(
-      volumeDistance(centroid.clone().setX(centroid.x + eps), volumes) -
-        volumeDistance(centroid.clone().setX(centroid.x - eps), volumes),
-      volumeDistance(centroid.clone().setY(centroid.y + eps), volumes) -
-        volumeDistance(centroid.clone().setY(centroid.y - eps), volumes),
-      volumeDistance(centroid.clone().setZ(centroid.z + eps), volumes) -
-        volumeDistance(centroid.clone().setZ(centroid.z - eps), volumes),
-    ).normalize();
+    const grad = sdfGradient(centroid, volumes, eps);
     const normal = b.clone().sub(a).cross(c.clone().sub(a));
     if (normal.dot(grad) < 0) verts.push(a, c, b);
     else verts.push(a, b, c);
@@ -142,12 +156,26 @@ export function polygonizeVolumes(volumes, {
   });
   const indexArray = new Uint32Array(remap.length);
   remap.forEach((v, i) => { indexArray[i] = v; });
+  const normal = new Float32Array(vertices.length * 3);
+  const color = new Float32Array(vertices.length * 3);
+  vertices.forEach((v, i) => {
+    const n = sdfGradient(v, volumes);
+    normal.set([n.x, n.y, n.z], i * 3);
+    color.set([n.x * 0.5 + 0.5, n.y * 0.5 + 0.5, n.z * 0.5 + 0.5], i * 3);
+  });
   geometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geometry.setAttribute('normal', new THREE.BufferAttribute(normal, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(color, 3));
   geometry.setAttribute('skinIndex', new THREE.BufferAttribute(skin, 4));
   geometry.setAttribute('skinWeight', new THREE.BufferAttribute(weights, 4));
   geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   geometry.setIndex(new THREE.BufferAttribute(indexArray, 1));
-  geometry.computeVertexNormals();
+  geometry.userData.analyticNormalSample = vertices.length
+    ? sdfGradient(vertices[0], volumes).toArray()
+    : null;
+  geometry.userData.analyticPositionSample = vertices.length
+    ? vertices[0].toArray()
+    : null;
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   return geometry;
