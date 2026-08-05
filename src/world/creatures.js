@@ -550,6 +550,12 @@ export class DinosaurSystem {
         Math.floor(this.time) % 14 === 0) {
       this.audio.triggerDinoRumble(this.creatures[0].group.position, 0.7);
     }
+    if (!this.turntable && this.audio &&
+        Math.floor(this.time) !== Math.floor(this.time - dt) &&
+        Math.floor(this.time) % 31 === 0) {
+      const rex = this.creatures.find(c => c.species === 'trex');
+      if (rex) this.audio.triggerDinoRoar(rex.group.position, 0.8);
+    }
   }
 
   stats() {

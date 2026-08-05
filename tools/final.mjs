@@ -19,6 +19,8 @@ const shots = [
 for (const [name] of shots) fs.rmSync(path.join(out, name), { force: true });
 const start = Date.now();
 await run({ width: 1280, height: 720, hash: 'manual&tier=high&park=1' }, async ({ page }) => {
+  console.log('warming renderer and vegetation buckets');
+  await page.waitForTimeout(3000);
   for (const [name, pos, target] of shots) {
     console.log(`capturing ${name}`);
     await page.evaluate(([name, pos, target]) => {
@@ -34,11 +36,14 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high&park=1' }, async (
       g.camera.lookAt(target[0], ty, target[1]);
       g.camera.updateMatrixWorld();
     }, [name, pos, target]);
+    await page.waitForTimeout(700);
+    const shotStart = Date.now();
     await Promise.race([
       capture(page, path.join(out, name)),
       new Promise((_, reject) => setTimeout(() =>
-        reject(new Error(`capture timeout: ${name}`)), 30_000)),
+        reject(new Error(`capture timeout: ${name}`)), 300_000)),
     ]);
+    console.log(`captured ${name} in ${Date.now() - shotStart} ms`);
   }
 });
 for (const [name] of shots) {

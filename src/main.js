@@ -520,6 +520,7 @@ class Game {
     this.dinosaurs.update(dt);
     this.gate?.update(performance.now() * 0.001);
     this.fence?.update(this.camera);
+    if (this.fence?.humLevel > 0.02) this.ambience?.triggerFenceHum(this.fence.humLevel);
     this.ruins.update(dt, this.camera);
     this.water.update(dt, this.camera, this.sky.sunDir, this.sun.color,
                       this.hemi.color, this.sun.intensity);
