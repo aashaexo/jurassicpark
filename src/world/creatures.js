@@ -6,6 +6,7 @@
  * the deterministic procedural rig used by the player body.
  */
 import * as THREE from 'three';
+import { polygonizeVolumes } from './metaball.js';
 
 const TAU = Math.PI * 2;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -61,7 +62,7 @@ function skinNormalTexture(seed = 1) {
 }
 
 function materialFor(seed) {
-  return new THREE.MeshStandardMaterial({
+  const material = new THREE.MeshStandardMaterial({
     map: skinTexture(seed),
     normalMap: skinNormalTexture(seed),
     color: 0xd2ba7c,
@@ -69,6 +70,23 @@ function materialFor(seed) {
     metalness: 0,
     normalScale: new THREE.Vector2(0.42, 0.42),
   });
+  material.onBeforeCompile = shader => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vCreatureWorld;')
+      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvCreatureWorld = worldPosition.xyz;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vCreatureWorld;')
+      .replace('#include <map_fragment>', `
+        vec3 creatureN = abs(normalize(vNormal));
+        creatureN /= max(0.001, creatureN.x + creatureN.y + creatureN.z);
+        vec3 creatureMap = texture2D(map, vCreatureWorld.yz * 0.09).rgb * creatureN.x
+          + texture2D(map, vCreatureWorld.xz * 0.09).rgb * creatureN.y
+          + texture2D(map, vCreatureWorld.xy * 0.09).rgb * creatureN.z;
+        diffuseColor *= vec4(creatureMap * 1.25, 1.0);
+      `);
+  };
+  material.customProgramCacheKey = () => 'creature-triplanar-v2';
+  return material;
 }
 
 function bone(parent, name, p) {
@@ -181,8 +199,102 @@ export class CreatureRig {
     this.group.scale.setScalar(scale);
     this.material = materialFor(seed);
     this.bones = {};
-    this._buildBrachiosaurus();
+    this._buildImplicitBrachiosaurus();
     this._groundY = 0;
+  }
+
+  _buildImplicitBrachiosaurus() {
+    const root = bone(this.group, 'root', new THREE.Vector3());
+    this.bones.root = root;
+    const profile = [
+      [0, 4.55, 9.6], [0, 4.62, 8.2], [0, 4.65, 6.8], [0, 4.62, 5.3],
+      [0, 4.52, 3.9], [0, 4.55, 2.4], [0, 4.8, 1.1], [0, 5.05, -0.3],
+      [0, 5.35, -1.6], [0, 5.72, -2.7], [0, 6.08, -3.5],
+      [0, 6.75, -4.15], [0, 7.6, -4.75], [0, 8.55, -5.3],
+      [0, 9.5, -5.72], [0, 10.45, -6], [0, 11.3, -6.18],
+      [0, 12, -6.25],
+    ].map(v => new THREE.Vector3(...v));
+    const spine = [];
+    for (let i = 0; i < profile.length; i++) {
+      const parent = i ? spine[i - 1] : root;
+      spine.push(bone(parent, `spine-${i}`, profile[i].clone().sub(i ? profile[i - 1] : new THREE.Vector3())));
+    }
+    this.bones.spine = spine;
+    this.bones.head = spine[spine.length - 1];
+    this.bones.legs = [];
+    const legDefs = [
+      ['front-left', -1, -2.55, 5.85, 3.05, 0.95],
+      ['front-right', 1, -2.55, 5.85, 3.05, 0.95],
+      ['rear-left', -1, 1.2, 4.65, 2.65, 0.76],
+      ['rear-right', 1, 1.2, 4.65, 2.65, 0.76],
+    ];
+    for (const [name, side, z, hipY, kneeY, ankleY] of legDefs) {
+      const hip = new THREE.Vector3(side * 1.22, hipY, z);
+      const knee = new THREE.Vector3(side * 1.15, kneeY, z - 0.16);
+      const ankle = new THREE.Vector3(side * 1.12, ankleY, z - 0.08);
+      const upper = bone(root, `${name}-upper`, hip);
+      const lower = bone(root, `${name}-lower`, knee);
+      const foot = bone(root, `${name}-foot`, ankle);
+      this.bones.legs.push({ name, side, upper, lower, foot, hip, knee, ankle,
+        end: new THREE.Vector3(side * 1.1, 0.28, z - 0.32) });
+    }
+    const legBones = this.bones.legs.flatMap(l => [l.upper, l.lower, l.foot]);
+    const skeleton = new THREE.Skeleton([root, ...spine, ...legBones]);
+    root.updateMatrixWorld(true);
+    skeleton.calculateInverses();
+    this.skeleton = skeleton;
+    const bonePoints = [new THREE.Vector3(), ...profile,
+      ...this.bones.legs.flatMap(l => [l.hip, l.knee, l.ankle])];
+    const boneForPoint = p => {
+      const ranked = bonePoints.map((q, i) => ({ i, d: p.distanceToSquared(q) }))
+        .sort((a, b) => a.d - b.d).slice(0, 3);
+      const raw = ranked.map(v => 1 / Math.max(0.05, Math.sqrt(v.d)));
+      const sum = raw.reduce((a, b) => a + b, 0);
+      return {
+        indices: ranked.map(v => v.i),
+        weights: raw.map(v => v / sum),
+      };
+    };
+    const E = (center, radius, blend = 0.25) =>
+      ({ type: 'ellipsoid', center: new THREE.Vector3(...center),
+        radius: new THREE.Vector3(...radius), blend });
+    const C = (a, b, ra, rb = ra, blend = 0.25) =>
+      ({ type: 'capsule', a: new THREE.Vector3(...a), b: new THREE.Vector3(...b),
+        ra, rb, blend });
+    const volumes = [
+      E([0, 5.0, -0.3], [1.65, 2.0, 3.5], 0.6),
+      E([0, 5.65, -2.55], [1.75, 1.65, 1.7], 0.65),
+      E([0, 4.55, 1.45], [1.75, 1.55, 1.9], 0.65),
+      C([0, 4.35, 3.7], [0, 4.55, 9.8], 0.82, 0.12, 0.3),
+      C([0, 6.0, -2.8], [0, 12.0, -6.25], 1.05, 0.38, 0.34),
+      E([0, 12.0, -6.9], [0.7, 0.62, 0.95], 0.3),
+      E([0, 12.3, -7.15], [0.58, 0.42, 0.6], 0.18),
+      E([0, 11.85, -7.5], [0.5, 0.28, 0.7], 0.14),
+    ];
+    for (const leg of this.bones.legs) {
+      volumes.push(C(leg.hip.toArray(), leg.knee.toArray(), 0.82, 0.68, 0.42));
+      volumes.push(C(leg.knee.toArray(), leg.ankle.toArray(), 0.68, 0.58, 0.3));
+      volumes.push(E(leg.end.toArray(), [0.82, 0.32, 1.0], 0.3));
+      for (const side of [-1, 0, 1]) {
+        volumes.push(C(
+          [leg.end.x + side * 0.24, 0.1, leg.end.z - 0.55],
+          [leg.end.x + side * 0.24, 0.22, leg.end.z - 0.92],
+          0.2, 0.12, 0.12,
+        ));
+      }
+    }
+    const geometry = polygonizeVolumes(volumes, {
+      spacing: 0.16,
+      margin: 0.3,
+      boneForPoint,
+    });
+    const mesh = new THREE.SkinnedMesh(geometry, this.material);
+    mesh.name = 'implicit-brachiosaurus-surface';
+    mesh.bind(skeleton);
+    mesh.castShadow = mesh.receiveShadow = true;
+    this.group.add(mesh);
+    this.mesh = mesh;
+    this.group.userData.creatureRig = this;
   }
 
   _buildBrachiosaurus() {

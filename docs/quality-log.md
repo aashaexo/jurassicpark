@@ -351,3 +351,51 @@ Honest capture read:
 
 The density smoke capture reported 371 scene calls and approximately 3.81M
 visible triangles with no browser or console errors.
+
+## Brachiosaurus implicit-surface pass
+
+The primitive assembly was replaced for the active Brachiosaurus with a
+reusable smooth-union volume polygonizer in `src/world/metaball.js`:
+
+- capsule and ellipsoid volumes define torso, ribcage, shoulder/hip mass,
+  neck, tail, head, jaw, legs, pads and toes;
+- polynomial/exponential-style smooth-min blending merges the volumes;
+- marching-tetrahedra polygonisation produces one welded closed surface;
+- the resulting mesh is bound to the procedural skeleton with nearest-three
+  distance-based skin weights;
+- triplanar shader sampling uses the bound procedural skin map, avoiding
+  unwrap seams;
+- the active hero mesh uses a 0.16 m polygonisation spacing and reports
+  70,650 triangles.
+
+New deterministic views:
+
+```text
+shots/dinosaurs/brachiosaurus/side.png
+shots/dinosaurs/brachiosaurus/three-quarter-front.png
+shots/dinosaurs/brachiosaurus/low-hero.png
+```
+
+Honest reads:
+
+- `side.png` — the torso is now a single smooth merged volume rather than a
+  sheet assembled from sections; the continuous tail, neck and leg junctions
+  hold together. The silhouette is substantially more organic, but the
+  head anatomy and feet still need a further realism pass.
+- `three-quarter-front.png` — the shoulder and chest volume read more broadly
+  and the surface no longer shows the old primitive seams. The near-side leg
+  still dominates the view, so the gait/foot solve needs additional tuning.
+- `low-hero.png` — the elevated neck and torso mass read at a cinematic angle,
+  with a much more convincing continuous underside. It is not yet a finished
+  film-quality Brachiosaurus because wrinkles, scale relief and detailed foot
+  anatomy remain limited.
+- `walk-00.png` through `walk-07.png` — the single surface stays closed during
+  animation and the limbs remain connected. The current solver is still
+  approximate rather than a complete planted-foot IK solution.
+- `in-world-brachiosaurus.png` — the fog and vegetation integration remains
+  strong, but the clearing reveal still requires a brighter sightline and
+  deliberate vegetation thinning.
+
+The implicit turntable mesh reports 70,650 triangles, one skinned mesh and no
+browser errors. The in-world smoke capture reported 348 scene calls and
+approximately 3.91M visible triangles.

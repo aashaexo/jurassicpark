@@ -13,6 +13,22 @@ await run({
   height: 720,
   hash: `manual&tier=high&dino=${name}`,
 }, async ({ page, errs }) => {
+  const poses = [
+    ['side.png', [7, 4.8, 9], [0, 5.1, 0]],
+    ['three-quarter-front.png', [-8, 5.4, 8], [0, 5.2, 0]],
+    ['low-hero.png', [6, 2.4, 8], [0, 6.5, -1]],
+  ];
+  for (const [file, position, target] of poses) {
+    await page.evaluate(([position, target]) => {
+      const g = window.__game;
+      g.camera.position.set(...position);
+      g.camera.lookAt(...target);
+      g.camera.updateMatrixWorld();
+      g.setPaused(true);
+      g.renderOnce();
+    }, [position, target]);
+    await capture(page, path.join(out, file));
+  }
   await page.evaluate(() => {
     const g = window.__game;
     g.camera.position.set(7, 4.8, 9);
