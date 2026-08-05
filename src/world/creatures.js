@@ -553,8 +553,13 @@ export class DinosaurSystem {
   }
 
   stats() {
+    const bySpecies = {};
     return this.creatures.reduce((out, c) => {
       const s = c.stats();
+      bySpecies[c.species] = bySpecies[c.species] || { instances: 0, ms: 0, cached: 0 };
+      bySpecies[c.species].instances++;
+      bySpecies[c.species].ms += s.polygonizeMs || 0;
+      bySpecies[c.species].cached += s.polygonizeCached ? 1 : 0;
       out.meshes += s.meshes;
       out.triangles += s.triangles;
       out.polygonizeMs = (out.polygonizeMs || 0) + (s.polygonizeMs || 0);
@@ -562,7 +567,7 @@ export class DinosaurSystem {
       return out;
     }, {
       meshes: 0, triangles: 0, instances: this.creatures.length,
-      polygonizeMs: 0, cached: 0,
+      polygonizeMs: 0, cached: 0, bySpecies,
     });
   }
 }
