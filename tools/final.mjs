@@ -25,6 +25,8 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
     console.log(`capturing ${name}`);
     const settled = await page.evaluate(([name, pos, target]) => {
       const g = window.__game;
+      g.goTo(0.84);
+      g.warp(1.5);
       g.setPaused(true);
       g.gate.root.visible = name.includes('gate');
       g.fence.root.visible = name.includes('fence');
@@ -36,11 +38,20 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
       g.camera.position.set(pos[0], y, pos[1]);
       g.camera.lookAt(target[0], ty, target[1]);
       g.camera.updateMatrixWorld();
-      return g.camera.position.toArray();
+      g.veg.update(0, g.camera, g.sky.sunDir, g.sun.color, g.hemi.color);
+      let nearbyVegetation = 0;
+      for (const c of g.veg.cells) {
+        const dx = c.x - g.camera.position.x, dz = c.z - g.camera.position.z;
+        if (dx * dx + dz * dz > 40 * 40) continue;
+        if (!c.group.visible) continue;
+        for (const mesh of c.hi.children) nearbyVegetation += mesh.count;
+      }
+      if (nearbyVegetation < 8) throw new Error(`${name} has only ${nearbyVegetation} nearby vegetation instances`);
+      return { position: g.camera.position.toArray(), nearbyVegetation };
     }, [name, pos, target]);
     await page.waitForTimeout(700);
     const actual = await page.evaluate(() => window.__game.camera.position.toArray());
-    const error = Math.hypot(actual[0] - settled[0], actual[1] - settled[1], actual[2] - settled[2]);
+    const error = Math.hypot(actual[0] - settled.position[0], actual[1] - settled.position[1], actual[2] - settled.position[2]);
     if (error > 0.05) throw new Error(`${name} camera moved ${error.toFixed(3)}m after settling`);
     const shotStart = Date.now();
     await Promise.race([
@@ -48,7 +59,7 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
       new Promise((_, reject) => setTimeout(() =>
         reject(new Error(`capture timeout: ${name}`)), 300_000)),
     ]);
-    console.log(`captured ${name} in ${Date.now() - shotStart} ms camera=${actual.map(v => v.toFixed(3)).join(',')} subject=${subjectKind || 'valley'}`);
+    console.log(`captured ${name} in ${Date.now() - shotStart} ms camera=${actual.map(v => v.toFixed(3)).join(',')} nearbyVegetation=${settled.nearbyVegetation} subject=${subjectKind || 'valley'}`);
   }
 });
 for (const [name] of shots) {
