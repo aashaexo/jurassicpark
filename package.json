@@ -9,6 +9,8 @@
     "shoot": "node tools/shoot.mjs",
     "dump": "node tools/dump.mjs",
     "isolate": "node tools/isolate.mjs"
+    ,"dino": "node tools/dino.mjs",
+    "dino-world": "node tools/dino-world.mjs"
   },
   "devDependencies": {
     "playwright": "^1.62.0"

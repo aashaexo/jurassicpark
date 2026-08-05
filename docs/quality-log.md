@@ -242,4 +242,57 @@ diagnostic rather than accepted photographic assets:
 The latest deterministic beauty capture reports 37,430 vegetation instances,
 1,275 tile buckets, 785–943 render calls, and 1.45–1.67M triangles. The
 software-rendered headless performance sample is approximately 0.55 FPS, so
-bucket culling and reduced bucket count remain follow-up work.
+ bucket culling and reduced bucket count remain follow-up work.
+
+## Brachiosaurus procedural creature slice
+
+Added the first Jurassic Park creature slice:
+
+- shared named-bone `CreatureRig` in `src/world/creatures.js`;
+- procedural Brachiosaurus silhouette with torso, hips, five neck segments,
+  five tail segments, four articulated legs, feet, head, muzzle, eyes and
+  nostrils;
+- deterministic breathing, browsing head motion, tail counter-sway and
+  quadruped lateral-sequence leg motion;
+- terrain grounding for world specimens;
+- procedural mottled skin `DataTexture` with rough PBR material;
+- deterministic dino turntable and walking-loop capture scripts;
+- procedural low-frequency rumble hook in the existing audio engine;
+- three Brachiosaurus individuals placed near the late-trail clearing.
+
+Captured:
+
+```text
+shots/dinosaurs/brachiosaurus/turntable.png
+shots/dinosaurs/brachiosaurus/walk-00.png ... walk-07.png
+shots/dinosaurs/brachiosaurus/report.json
+shots/dinosaurs/in-world-brachiosaurus.png
+```
+
+Honest reads:
+
+- `turntable.png` — the long rising neck, small head, deep torso, four massive
+  legs and counterbalancing tail clearly read as a Brachiosaurus silhouette;
+  the procedural skin is mottled and the proportions are film-readable, but
+  the surface still lacks fine scale relief and the model remains visibly
+  stylized at close range.
+- `walk-00.png` through `walk-07.png` — breathing, head scanning, tail sway and
+  alternating leg phases are visible across the sequence; this is a readable
+  ponderous walk prototype, not yet a finished film-quality weight solve because
+  the feet are not yet full IK targets.
+- `in-world-brachiosaurus.png` — the herd is integrated into the vegetation and
+  shadow pipeline, but the animals blend into the dark understory at this
+  camera angle and the clearing sightline needs a dedicated reveal composition
+  before the herd reads as the money shot.
+
+Creature-only statistics:
+
+```text
+meshes:    26
+triangles: 12,992
+instances: 1
+```
+
+The integrated smoke capture at the clearing stop reported 366 scene calls and
+approximately 3.78 million visible triangles under SwiftShader. Browser errors
+and warnings were empty.
