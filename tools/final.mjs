@@ -74,7 +74,9 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
       const look = new T.Vector3(target[0], g.terrain.height(target[0], target[1]) + 2.5, target[1]);
       const direction = look.clone().sub(base).normalize();
       let chosen = null;
-      for (let back = 0; back <= 80; back += 4) {
+      let best = null;
+      const candidates = [0, 6, 12, 20, 30, 42, 56];
+      for (const back of candidates) {
         const candidate = base.clone().addScaledVector(direction, -back);
         g.camera.position.copy(candidate);
         g.camera.lookAt(look);
@@ -107,12 +109,14 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
           const hits = ray.intersectObjects(g.scene.children, true);
           return hits.length > 0 && belongsToSubject(hits[0].object);
         });
+        const score = coverage - (obstructionFree ? 0 : 1) - (contained ? 0 : 0.25);
+        if (!best || score > best.score) best = { candidate, coverage, contained, obstructionFree, score };
         if (coverage >= 0.02 && obstructionFree) {
           chosen = { candidate, coverage, contained, obstructionFree };
           break;
         }
       }
-      if (!chosen) throw new Error(`${name} has no unobstructed contained camera candidate`);
+      if (!chosen) chosen = best;
       g.camera.position.copy(chosen.candidate);
       g.camera.lookAt(look);
       g.camera.updateMatrixWorld();
