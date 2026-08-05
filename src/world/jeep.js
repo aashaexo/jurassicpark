@@ -21,13 +21,24 @@ export class SafariJeep {
     this.root.add(box('jeep-body', [3.8, 0.85, 1.8], grey, new THREE.Vector3(0, 1.05, 0)));
     this.root.add(box('jeep-red-hood', [1.25, 0.22, 1.65], red, new THREE.Vector3(1.2, 1.57, 0)));
     this.root.add(box('jeep-red-side-panel', [1.5, 0.55, 0.08], red, new THREE.Vector3(-0.65, 1.25, -0.94)));
-    this.root.add(box('jeep-cabin', [1.8, 1.15, 1.55], grey, new THREE.Vector3(-0.45, 1.8, 0)));
+    this.root.add(box('jeep-seat-front', [0.65, 0.38, 0.62], black, new THREE.Vector3(-0.15, 1.55, -0.48)));
+    this.root.add(box('jeep-seat-rear', [0.65, 0.38, 0.62], black, new THREE.Vector3(-1.05, 1.55, 0.48)));
+    this.root.add(box('jeep-side-stripe', [1.7, 0.18, 0.06], red, new THREE.Vector3(-0.55, 1.65, -0.95)));
+    this.root.add(box('jeep-side-stripe', [1.7, 0.18, 0.06], red, new THREE.Vector3(-0.55, 1.42, -0.95)));
     this.root.add(box('jeep-windshield', [0.08, 0.7, 1.35], glass, new THREE.Vector3(0.48, 2.02, 0),
       [0, 0, -0.18]));
     for (const x of [-1.2, 0.3]) for (const z of [-0.82, 0.82]) {
       this.root.add(box('jeep-roll-cage', [0.1, 2.0, 0.1], black, new THREE.Vector3(x, 2.35, z)));
     }
     this.root.add(box('jeep-roll-cage-top', [1.7, 0.1, 1.8], black, new THREE.Vector3(-0.45, 3.25, 0)));
+    this.root.add(box('jeep-grille', [0.12, 0.48, 1.2], black, new THREE.Vector3(2.02, 1.2, 0)));
+    for (const z of [-0.48, 0.48]) {
+      const headlight = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.08, 16),
+        new THREE.MeshStandardMaterial({ color: 0xe9d9a7, emissive: 0x8a6f2e }));
+      headlight.rotation.z = Math.PI / 2;
+      headlight.position.set(2.08, 1.55, z);
+      this.root.add(headlight);
+    }
     for (const x of [-1.35, 1.35]) for (const z of [-0.98, 0.98]) {
       const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.3, 16), black);
       wheel.rotation.x = Math.PI / 2;
