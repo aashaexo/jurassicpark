@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { run, capture } from './harness.mjs';
 import { finish } from './tame.mjs';
+import { assertCaptureCoverage } from './assert-capture.mjs';
 
 const out = path.resolve('shots/park-content');
 fs.mkdirSync(out, { recursive: true });
@@ -25,6 +26,7 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high&park=1' }, async (
       g.setPaused(true);
       g.renderOnce();
     }, [name, x, z, targetX, targetZ]);
+    await assertCaptureCoverage(page, 'gate');
     await capture(page, path.join(out, name));
   }
 });

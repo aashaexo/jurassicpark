@@ -306,7 +306,7 @@ class Game {
       this.veg.root.visible = false;
       this.ruins.root.visible = false;
       this.water.root.visible = false;
-      this.dinosaurs.root.visible = false;
+      if (!this.dinoName) this.dinosaurs.root.visible = false;
       this.fence.root.visible = false;
       this.jeep.root.visible = false;
     }

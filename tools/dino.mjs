@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { run, capture } from './harness.mjs';
 import { finish } from './tame.mjs';
+import { assertCaptureCoverage } from './assert-capture.mjs';
 
 const name = process.argv[2] || 'brachiosaurus';
 const debug = process.argv[3] === 'normal';
@@ -45,6 +46,7 @@ await run({
   }, mode);
   await assertMode(debug);
   const frames = [];
+  const coverage = {};
   if (debug) {
     await page.evaluate(() => {
       const g = window.__game;
@@ -64,6 +66,7 @@ await run({
   for (const [file, mode] of poses) {
     await assertMode(false);
     await studioCamera(mode);
+    coverage[file] = await assertCaptureCoverage(page, 'dino');
     await capture(page, path.join(out, file));
   }
   await studioCamera('side');
@@ -109,7 +112,7 @@ await run({
     throw new Error(`invalid creature mesh: ${JSON.stringify(v)}`);
   }
   fs.writeFileSync(path.join(out, debug ? 'normal-report.json' : 'report.json'), JSON.stringify({
-    species: name, debugNormals: debug, frames, stats, errors: errs,
+    species: name, debugNormals: debug, frames, coverage, stats, errors: errs,
   }, null, 2));
 });
 finish(process.exitCode || 0);
