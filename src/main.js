@@ -123,6 +123,7 @@ class Game {
 
     this.sky = new Sky(this.renderer);
     this.sky.setSun(38, 152);
+    if (this.parkStudio) this.sky.setSun(38, 332);
     scene.add(this.sky.mesh);
 
     /* Depth cue. Real jungle air is thick with water vapour and the visibility
@@ -346,7 +347,7 @@ class Game {
     this.atmos.setTier(this.tier);
     if (this.dinoName || this.parkCapture || this.parkStudio) {
       this.atmos.enabled = false;
-      this.atmos.grade.bypass = true;
+      this.atmos.grade.enabled = false;
     }
     this._syncAtmosphereSize();
 

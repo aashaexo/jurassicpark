@@ -18,6 +18,8 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high&parkStudio=1' }, a
   for (const [file, mode] of poses) {
     await page.evaluate((mode) => {
       const g = window.__game;
+      g.sky.setSun(38, 332);
+      g.canopy.setSun(g.sky.sunDir);
       const box = g.gate.bounds.clone();
       const center = box.getCenter(g.camera.position.clone());
       const size = box.getSize(g.camera.position.clone());

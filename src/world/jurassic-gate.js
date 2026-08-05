@@ -43,9 +43,9 @@ export class JurassicGate {
     const iron = new THREE.MeshStandardMaterial({
       color: 0x151719, roughness: 0.92, metalness: 0.65,
     });
-    const signMat = new THREE.MeshStandardMaterial({ color: 0x302015, roughness: 0.92 });
+    const signMat = new THREE.MeshStandardMaterial({ color: 0x9a886b, roughness: 0.92 });
     const letterMat = new THREE.MeshStandardMaterial({
-      color: 0xb69b62, roughness: 0.78, metalness: 0.05,
+      color: 0x29251f, roughness: 0.88, metalness: 0.05,
     });
     const fire = new THREE.MeshBasicMaterial({
       color: 0xff9a32, transparent: true, opacity: 0.78,
@@ -70,6 +70,9 @@ export class JurassicGate {
             new THREE.Vector3(x + 1.05, y, jitter), 'z'));
         }
       }
+      this.root.add(box('tower-solid-core', [2.45, 8.2, 2.45],
+        new THREE.MeshStandardMaterial({ color: 0x302b25, roughness: 1 }),
+        new THREE.Vector3(x, 4.85, 0)));
     }
 
     this.root.add(log('gate-lintel', 0.35, 13, timber, new THREE.Vector3(0, 9, 0), 'x'));
@@ -81,6 +84,19 @@ export class JurassicGate {
     }
     this.root.add(box('sign-board', [8, 2.4, 0.3], signMat,
       new THREE.Vector3(0, 11.2, 0)));
+    for (const [sx, sy, w, h] of [
+      [0, 12.3, 8.2, 0.16], [0, 10.1, 8.2, 0.16],
+      [-3.95, 11.2, 0.16, 2.25], [3.95, 11.2, 0.16, 2.25],
+    ]) {
+      this.root.add(box('sign-raised-border', [w, h, 0.08], timber,
+        new THREE.Vector3(sx, sy, -0.2)));
+    }
+    for (const x of [-3.55, 3.55]) for (const yb of [10.45, 11.95]) {
+      const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.08, 10), iron);
+      bolt.rotation.x = Math.PI / 2;
+      bolt.position.set(x, yb, -0.25);
+      this.root.add(bolt);
+    }
     this._addLetters(letterMat);
 
     for (const side of [-1, 1]) this._addLeaf(side, timber, iron);

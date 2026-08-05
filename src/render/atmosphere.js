@@ -938,7 +938,7 @@ export class Atmosphere {
     this._draw(this.compositeMat, this.grade.target());
     /* The volumetric and occlusion debug views are measurements, so the grade
      * gets out of their way rather than being applied to them. */
-    this.grade.bypass = cu.uVolDbg.value > 0.5;
+    this.grade.bypass = !this.grade.enabled || cu.uVolDbg.value > 0.5;
     this.grade.finish(camera);
   }
 
