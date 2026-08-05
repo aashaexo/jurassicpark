@@ -204,8 +204,84 @@ export class CreatureRig {
     this.group.scale.setScalar(scale);
     this.material = materialFor(seed, debugNormals);
     this.bones = {};
-    this._buildImplicitBrachiosaurus();
+    if (species === 'brachiosaurus') this._buildImplicitBrachiosaurus();
+    else this._buildImplicitSpecies(species);
     this._groundY = 0;
+  }
+
+  _buildImplicitSpecies(species) {
+    const root = bone(this.group, 'root', new THREE.Vector3());
+    this.bones.root = root;
+    this.bones.spine = [root];
+    this.bones.head = root;
+    this.bones.legs = [];
+    const E = (center, radius, blend = 0.25) =>
+      ({ type: 'ellipsoid', center: new THREE.Vector3(...center),
+        radius: new THREE.Vector3(...radius), blend });
+    const C = (a, b, ra, rb = ra, blend = 0.25) =>
+      ({ type: 'capsule', a: new THREE.Vector3(...a), b: new THREE.Vector3(...b),
+        ra, rb, blend });
+    const volumes = [];
+    if (species === 'triceratops') {
+      volumes.push(E([0, 3.4, 0], [2.25, 2.0, 3.1], 0.6));
+      volumes.push(E([0, 3.8, 3.0], [1.55, 1.5, 1.5], 0.4));
+      volumes.push(E([0, 4.4, 4.0], [1.45, 1.25, 1.3], 0.3));
+      volumes.push(E([0, 4.4, 4.8], [2.3, 2.0, 0.35], 0.3));
+      volumes.push(C([-0.45, 4.8, 4.5], [-0.65, 4.85, 5.9], 0.22, 0.1, 0.12));
+      volumes.push(C([0.45, 4.8, 4.5], [0.65, 4.85, 5.9], 0.22, 0.1, 0.12));
+      volumes.push(C([0, 4.35, 4.9], [0, 4.2, 5.7], 0.18, 0.08, 0.1));
+      for (const x of [-1.25, 1.25]) for (const z of [-1.8, 1.7])
+        volumes.push(C([x, 3.1, z], [x * 0.95, 0.65, z], 0.62, 0.38, 0.25));
+    } else if (species === 'gallimimus') {
+      volumes.push(E([0, 3.5, 0], [0.85, 1.0, 1.8], 0.3));
+      volumes.push(C([0, 3.8, 1.2], [0, 5.0, 2.8], 0.42, 0.22, 0.18));
+      volumes.push(E([0, 5.2, 3.1], [0.32, 0.28, 0.55], 0.15));
+      volumes.push(C([0, 3.4, -1.2], [0, 3.0, -4.5], 0.3, 0.08, 0.15));
+      for (const x of [-0.48, 0.48]) {
+        volumes.push(C([x, 3.0, 0.6], [x * 1.1, 0.45, 0.2], 0.22, 0.12, 0.15));
+        volumes.push(C([x * 1.1, 0.45, 0.2], [x * 1.3, 0.12, -0.15], 0.12, 0.06, 0.1));
+      }
+    } else if (species === 'dilophosaurus') {
+      volumes.push(E([0, 2.5, 0], [0.8, 1.0, 1.35], 0.3));
+      volumes.push(C([0, 2.8, 0.8], [0, 4.0, 1.9], 0.38, 0.2, 0.2));
+      volumes.push(E([0, 4.2, 2.2], [0.55, 0.5, 0.85], 0.18));
+      volumes.push(E([0, 4.55, 1.95], [0.65, 0.55, 0.18], 0.12));
+      for (const side of [-1, 1]) volumes.push(E([side * 0.38, 4.7, 2.15], [0.22, 0.65, 0.3], 0.12));
+      volumes.push(C([0, 2.3, -0.8], [0, 2.0, -3.5], 0.32, 0.08, 0.16));
+      for (const x of [-0.5, 0.5]) volumes.push(C([x, 2.0, 0.2], [x * 1.15, 0.3, -0.1], 0.2, 0.1, 0.15));
+    } else {
+      volumes.push(E([0, 4.0, 0], [2.0, 1.8, 3.0], 0.55));
+      volumes.push(C([0, 4.2, 2.0], [0, 4.8, 4.0], 0.75, 0.5, 0.3));
+      volumes.push(E([0, 5.0, 4.7], [1.3, 1.25, 1.55], 0.3));
+      volumes.push(E([0, 5.3, 5.7], [1.2, 0.8, 1.1], 0.2));
+      volumes.push(C([0, 3.8, -2.0], [0, 3.1, -7.0], 0.75, 0.12, 0.3));
+      for (const x of [-1.3, 1.3]) {
+        volumes.push(C([x, 3.5, 1.0], [x * 1.05, 0.65, 0.7], 0.6, 0.35, 0.25));
+        volumes.push(C([x * 0.55, 3.7, 3.8], [x * 0.75, 3.0, 4.5], 0.18, 0.1, 0.12));
+      }
+    }
+    const boneForPoint = () => ({ indices: [0], weights: [1] });
+    const spacing = species === 'trex' ? 0.18 : 0.16;
+    const cacheKey = `${species}:${spacing}`;
+    const started = performance.now();
+    let geometry = GEOMETRY_CACHE.get(cacheKey);
+    this.polygonizeCached = Boolean(geometry);
+    if (!geometry) {
+      geometry = polygonizeVolumes(volumes, { spacing, margin: 0.3, boneForPoint });
+      GEOMETRY_CACHE.set(cacheKey, geometry);
+    }
+    this.polygonizeMs = performance.now() - started;
+    const skeleton = new THREE.Skeleton([root]);
+    root.updateMatrixWorld(true);
+    skeleton.calculateInverses();
+    this.skeleton = skeleton;
+    const mesh = new THREE.SkinnedMesh(geometry, this.material);
+    mesh.name = `implicit-${species}-surface`;
+    mesh.bind(skeleton);
+    mesh.castShadow = mesh.receiveShadow = true;
+    this.group.add(mesh);
+    this.mesh = mesh;
+    this.group.userData.creatureRig = this;
   }
 
   _buildImplicitBrachiosaurus() {
@@ -292,13 +368,14 @@ export class CreatureRig {
         ));
       }
     }
-    const cacheKey = `${this.species}:0.16`;
+    const spacing = this.species === 'trex' ? 0.18 : 0.16;
+    const cacheKey = `${this.species}:${spacing}`;
     const started = performance.now();
     let geometry = GEOMETRY_CACHE.get(cacheKey);
     this.polygonizeCached = Boolean(geometry);
     if (!geometry) {
       geometry = polygonizeVolumes(volumes, {
-        spacing: 0.16,
+        spacing,
         margin: 0.3,
         boneForPoint,
       });

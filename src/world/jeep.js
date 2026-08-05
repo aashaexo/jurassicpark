@@ -18,7 +18,7 @@ export class SafariJeep {
     const grey = new THREE.MeshStandardMaterial({ color: 0x62676a, roughness: 0.88 });
     const black = new THREE.MeshStandardMaterial({ color: 0x17191a, roughness: 0.9, metalness: 0.25 });
     const glass = new THREE.MeshStandardMaterial({ color: 0x26383b, roughness: 0.25, metalness: 0.1 });
-    this.root.add(box('jeep-body', [3.8, 0.85, 1.8], grey, new THREE.Vector3(0, 1.05, 0)));
+    this.root.add(box('jeep-body', [4.2, 0.85, 1.8], grey, new THREE.Vector3(0, 1.05, 0)));
     this.root.add(box('jeep-red-hood', [1.25, 0.22, 1.65], red, new THREE.Vector3(1.2, 1.57, 0)));
     this.root.add(box('jeep-red-side-panel', [1.5, 0.55, 0.08], red, new THREE.Vector3(-0.65, 1.25, -0.94)));
     this.root.add(box('jeep-seat-front', [0.65, 0.38, 0.62], black, new THREE.Vector3(-0.15, 1.55, -0.48)));
@@ -39,12 +39,23 @@ export class SafariJeep {
       headlight.position.set(2.08, 1.55, z);
       this.root.add(headlight);
     }
-    for (const x of [-1.35, 1.35]) for (const z of [-0.98, 0.98]) {
+    for (const x of [-1.4, 1.4]) for (const z of [-0.98, 0.98]) {
       const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.3, 16), black);
       wheel.rotation.x = Math.PI / 2;
       wheel.position.set(x, 0.7, z);
       wheel.name = 'jeep-wheel';
       this.root.add(wheel);
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.32, 12),
+        new THREE.MeshStandardMaterial({ color: 0xb5aa8b, roughness: 0.65, metalness: 0.35 }));
+      hub.rotation.x = Math.PI / 2;
+      hub.position.set(x, 0.7, z);
+      hub.name = 'jeep-wheel-hub';
+      this.root.add(hub);
+      const arch = new THREE.Mesh(new THREE.TorusGeometry(0.53, 0.07, 8, 18, Math.PI), black);
+      arch.position.set(x, 0.82, z * 0.99);
+      arch.rotation.z = Math.PI;
+      arch.name = 'jeep-wheel-arch';
+      this.root.add(arch);
     }
     const spare = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.28, 16), black);
     spare.rotation.z = Math.PI / 2;
