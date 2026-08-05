@@ -36,8 +36,9 @@ F to toggle spectator/free-fly mode, and F3 to toggle diagnostics.
   quality tiers, player-following shadow frustum, diagnostics.
 - `src/render/sky.js`: analytic Rayleigh/Mie-inspired sky, sun disc, haze,
   clouds, cube capture and PMREM environment lighting.
-- `src/world/terrain.js`: chunked 600 m valley heightfield, basin, hills,
-  gate pad, slope-aware PBR splatting.
+- `src/world/terrain.js`: chunked 600 m valley heightfield with dense near
+  sampling, coarse far sampling, skirts, basin, hills, gate pad, drainage
+  shaping, and slope/road/height-weighted PBR splatting.
 - `src/world/road.js`: spline road with cut/fill, banking, shoulder and ruts.
 - `src/gfx/`: GLSL noise and GPU-baked albedo/normal/ORM material sets.
 - `src/render/grade.js`: HDR fullscreen grade with bloom, AO-like depth darkening,
@@ -46,3 +47,11 @@ F to toggle spectator/free-fly mode, and F3 to toggle diagnostics.
 
 Later phases will add procedural vegetation, the park gate, dinosaurs,
 water/lagoon detail, signage, and audio.
+
+## Visual comparison evidence
+
+The committed `media/reference-*.jpg` files are screenshots from the
+`/home/ubuntu/refs/jungle-trail` reference project. The matching Phase 1
+captures are `media/valley-overview.png`, `media/road-ground.png`,
+`media/hills-sky.png`, and `media/toward-sun.png`. They are evidence-only
+images and are not runtime art assets.
