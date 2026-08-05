@@ -1591,6 +1591,14 @@ export class Vegetation {
     }
   }
 
+  suppressZone(x, z, radius) {
+    const r2 = radius * radius;
+    for (const cell of this.cells) {
+      const dx = cell.x - x, dz = cell.z - z;
+      if (dx * dx + dz * dz < r2) cell.group.visible = false;
+    }
+  }
+
   /* ---------------------------------------------------------------- runtime */
 
   /**

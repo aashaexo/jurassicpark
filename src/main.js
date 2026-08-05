@@ -114,6 +114,8 @@ class Game {
       new URLSearchParams(location.hash.slice(1)).get('dino');
     this.parkCapture = new URLSearchParams(location.search).get('park') === '1' ||
       new URLSearchParams(location.hash.slice(1)).get('park') === '1';
+    this.parkStudio = new URLSearchParams(location.search).get('parkStudio') === '1' ||
+      new URLSearchParams(location.hash.slice(1)).get('parkStudio') === '1';
     this.dinoDebug = new URLSearchParams(location.search).get('debug') ||
       new URLSearchParams(location.hash.slice(1)).get('debug');
 
@@ -287,24 +289,25 @@ class Game {
     scene.add(this.dinosaurs.root);
     this.gate = new JurassicGate(this.terrain);
     scene.add(this.gate.root);
-    if (this.dinoName) {
+    if (this.parkCapture) this.veg.suppressZone(7, -304, 18);
+    if (this.dinoName || this.parkStudio) {
       this.terrain.group.visible = false;
       this.veg.root.visible = false;
       this.ruins.root.visible = false;
-      this.gate.root.visible = false;
       this.water.root.visible = false;
     }
-    if (this.dinoName || this.parkCapture) {
+    if (this.dinoName || this.parkCapture || this.parkStudio) {
       scene.fog = null;
     }
-    if (this.dinoName) {
+    if (this.dinoName || this.parkStudio) {
       const ground = new THREE.Mesh(
         new THREE.PlaneGeometry(40, 40),
         new THREE.MeshStandardMaterial({ color: 0x918a73, roughness: 1 }),
       );
       ground.rotation.x = -Math.PI / 2;
+      ground.position.y = this.terrain.height(7, -304);
       ground.receiveShadow = true;
-      ground.name = 'dinosaur-turntable-ground';
+      ground.name = this.parkStudio ? 'park-gate-studio-ground' : 'dinosaur-turntable-ground';
       scene.add(ground);
     }
 
@@ -322,7 +325,7 @@ class Game {
                              this.collision).attach(this.canvas);
     this.body = new PlayerBody(this.renderer, this.walker, { tier: this.tier });
     scene.add(this.body.root);
-    if (this.dinoName) this.body.root.visible = false;
+    if (this.dinoName || this.parkStudio) this.body.root.visible = false;
     /* First-person limbs and the complete external body use separate layers.
      * This camera sees only the camera-aligned representation; PlayerBody
      * exposes the complete one to the depth traversal just long enough to cast

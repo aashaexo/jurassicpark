@@ -110,6 +110,8 @@ export class JurassicGate {
       this.flames ??= [];
       this.flames.push({ flame, light, phase: x });
     }
+    this.root.updateMatrixWorld(true);
+    this.bounds = new THREE.Box3().setFromObject(this.root);
   }
 
   update(time = 0) {
