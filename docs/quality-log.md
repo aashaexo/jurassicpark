@@ -572,3 +572,20 @@ The regenerated reads are:
 
 The turntable remains at 22,864 triangles per animal and the geometry
 validation remains green.
+
+## Current procedural species status
+
+The current cached implicit species meshes validate as follows:
+
+| Species | Triangles | Boundary | Non-manifold | Degenerate | Non-finite | Orientation flips |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Triceratops | 14,468 | 0 | 0 | 0 | 0 | 0 |
+| Gallimimus | 3,346 | 0 | 0 | 0 | 0 | 2 |
+| Dilophosaurus | 2,992 | 0 | 0 | 0 | 0 | 1 |
+| T-Rex | 6,022 | 0 | 0 | 0 | 0 | 4 |
+
+The species are now placed in the world and share the geometry cache. The
+remaining weaknesses are that flock steering, dust, the Dilophosaurus
+proximity frill, and T-Rex audio cues are still simplified. Final cinematic
+capture coverage is also incomplete. No visual acceptance is inferred from
+these numbers; they only describe fresh capture and topology checks.

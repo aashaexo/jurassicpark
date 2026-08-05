@@ -300,7 +300,7 @@ class Game {
     scene.add(this.fence.root);
     this.jeep = new SafariJeep(this.terrain);
     scene.add(this.jeep.root);
-    if (this.parkCapture) this.veg.suppressZone(7, -304, 18);
+    if (this.parkCapture) this.veg.suppressZone(7, -304, 10);
     if (this.dinoName || this.parkStudio || this.fenceStudio || this.jeepStudio) {
       this.terrain.group.visible = false;
       this.veg.root.visible = false;
@@ -324,7 +324,7 @@ class Game {
     }
     if (this.dinoName || this.parkStudio || this.fenceStudio || this.jeepStudio) {
       const ground = new THREE.Mesh(
-        new THREE.PlaneGeometry(40, 40),
+        new THREE.PlaneGeometry(200, 200),
         new THREE.MeshStandardMaterial({ color: 0x918a73, roughness: 1 }),
       );
       ground.rotation.x = -Math.PI / 2;

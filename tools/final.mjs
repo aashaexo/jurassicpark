@@ -7,7 +7,7 @@ const out = path.resolve('shots/final');
 fs.mkdirSync(out, { recursive: true });
 const shots = [
   ['gate-approach.png', [7, -268], [7, -304]],
-  ['brachiosaurus-reveal.png', [-10, -320], [-20, -326]],
+  ['brachiosaurus-reveal.png', [-45, -360], [-20, -326]],
   ['fence-line.png', [22, -300], [30, -300]],
   ['jeep-road.png', [7, -302], [7, -306]],
   ['triceratops-trail.png', [-8, -286], [-8, -296]],
@@ -20,6 +20,7 @@ for (const [name] of shots) fs.rmSync(path.join(out, name), { force: true });
 const start = Date.now();
 await run({ width: 1600, height: 900, hash: 'manual&tier=high' }, async ({ page }) => {
   for (const [name, pos, target] of shots) {
+    console.log(`capturing ${name}`);
     await page.evaluate(([pos, target]) => {
       const g = window.__game;
       const y = g.terrain.height(pos[0], pos[1]) + 1.7;
@@ -30,7 +31,11 @@ await run({ width: 1600, height: 900, hash: 'manual&tier=high' }, async ({ page 
       g.setPaused(true);
       g.renderOnce();
     }, [pos, target]);
-    await capture(page, path.join(out, name));
+    await Promise.race([
+      capture(page, path.join(out, name)),
+      new Promise((_, reject) => setTimeout(() =>
+        reject(new Error(`capture timeout: ${name}`)), 30_000)),
+    ]);
   }
 });
 for (const [name] of shots) {
