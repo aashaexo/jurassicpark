@@ -81,6 +81,7 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
       const candidates = [-16, -8, 0, 6, 12, 20, 30, 42, 56];
       for (const back of candidates) {
         const candidate = base.clone().addScaledVector(direction, -back);
+        candidate.y = base.y;
         g.camera.position.copy(candidate);
         g.camera.lookAt(look);
         g.camera.updateMatrixWorld();
@@ -113,8 +114,10 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
           return Boolean(first && belongsToSubject(first.object));
         });
         const clearRays = rayResults.filter(Boolean).length;
-        const obstructionFree = rayResults[0] || clearRays >= 2;
-        const score = coverage - (clearRays / aims.length) * 0.5 - (contained ? 0 : 0.25);
+        const obstructionFree = clearRays >= 1;
+        const score = coverage -
+          (subjectKind === 'jeep' ? (obstructionFree ? 0 : 0.05) : (clearRays / aims.length) * 0.5) -
+          (contained ? 0 : 0.25);
         if (!best || score > best.score) best = { candidate, coverage, contained, obstructionFree, clearRays, score };
         if (coverage >= 0.08 && obstructionFree) {
           chosen = { candidate, coverage, contained, obstructionFree, clearRays };
