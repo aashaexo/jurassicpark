@@ -6,7 +6,8 @@
   "description": "Procedural photorealistic Jurassic Park valley scene in Three.js",
   "scripts": {
     "serve": "node tools/serve.mjs",
-    "shoot": "node tools/shoot.mjs"
+    "shoot": "node tools/shoot.mjs",
+    "perf": "node tools/perf.mjs"
   },
   "dependencies": {
     "playwright": "^1.62.0"

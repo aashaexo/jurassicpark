@@ -22,6 +22,11 @@ npm run serve
 Open <http://localhost:8099/>. There is intentionally no bundler or build step;
 Three.js r170 is imported from jsDelivr through the import map.
 
+For a three-second high-quality headless frame-time sample, run
+`npm run perf` while the server is running. `npm run shoot` captures the four
+Phase 1 viewpoints into `media/` and fails on browser errors or meaningful
+warnings.
+
 Controls: click for pointer lock, WASD to walk, Shift to sprint, Space to jump,
 F to toggle spectator/free-fly mode, and F3 to toggle diagnostics.
 
