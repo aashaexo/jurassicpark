@@ -238,7 +238,7 @@ export function polygonizeVolumes(volumes, {
       for (const point of [a, b, c]) {
         if (![point.x, point.y, point.z].every(Number.isFinite)) nonFinite++;
       }
-      if (n.lengthSq() < 1e-12) degenerate++;
+      if (n.lengthSq() < 1e-14) degenerate++;
       const centroid = a.clone().add(b).add(c).multiplyScalar(1 / 3);
       const alignment = n.dot(sdfGradient(centroid, volumes));
       minAlignment = Math.min(minAlignment, alignment);

@@ -10,7 +10,8 @@
     "dump": "node tools/dump.mjs",
     "isolate": "node tools/isolate.mjs"
     ,"dino": "node tools/dino.mjs",
-    "dino-world": "node tools/dino-world.mjs"
+    "dino-world": "node tools/dino-world.mjs",
+    "park-content": "node tools/park-content.mjs"
   },
   "devDependencies": {
     "playwright": "^1.62.0"

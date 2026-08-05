@@ -24,6 +24,7 @@ import { Atmosphere } from './render/atmosphere.js';
 import { Ambience } from './audio/engine.js';
 import { DebugOverlay } from './debug.js';
 import { DinosaurSystem } from './world/creatures.js';
+import { JurassicGate } from './world/jurassic-gate.js';
 
 /* Quality tiers.
  *
@@ -282,10 +283,13 @@ class Game {
     });
     this.creatures = this.dinosaurs;
     scene.add(this.dinosaurs.root);
+    this.gate = new JurassicGate(this.terrain);
+    scene.add(this.gate.root);
     if (this.dinoName) {
       this.terrain.group.visible = false;
       this.veg.root.visible = false;
       this.ruins.root.visible = false;
+      this.gate.root.visible = false;
       this.water.root.visible = false;
       scene.fog = null;
       const ground = new THREE.Mesh(
@@ -330,7 +334,10 @@ class Game {
     this.canopy.setSun(this.sky.sunDir);
     this.atmos = new Atmosphere(this.renderer, this.canopy);
     this.atmos.setTier(this.tier);
-    if (this.dinoName) this.atmos.enabled = false;
+    if (this.dinoName) {
+      this.atmos.enabled = false;
+      this.atmos.grade.bypass = true;
+    }
     this._syncAtmosphereSize();
 
     /* Every opaque MeshStandardMaterial in the scene, and the list is
@@ -343,6 +350,11 @@ class Game {
       if (m.userData && m.userData.debugNormals) continue;
       patchCanopyLight(m, this.canopy);
     }
+    const gateMaterials = new Set();
+    this.gate.root.traverse(o => {
+      if (o.material && o.material.isMeshStandardMaterial) gateMaterials.add(o.material);
+    });
+    for (const material of gateMaterials) patchCanopyLight(material, this.canopy);
 
     /* Nothing is allocated on the audio device here and no buffer is
      * synthesized: constructing Ambience only chains the walker's footfall
@@ -461,6 +473,7 @@ class Game {
     this.camera.matrixWorldInverse.copy(this.camera.matrixWorld).invert();
     this.veg.update(dt, this.camera, this.sky.sunDir, this.sun.color, this.hemi.color);
     this.dinosaurs.update(dt);
+    this.gate?.update(dt);
     this.ruins.update(dt, this.camera);
     this.water.update(dt, this.camera, this.sky.sunDir, this.sun.color,
                       this.hemi.color, this.sun.intensity);
