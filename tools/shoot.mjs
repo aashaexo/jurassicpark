@@ -16,21 +16,21 @@ page.on('console', (message) => {
 page.on('pageerror', (error) => errors.push(error.message));
 await page.goto('http://localhost:8099/?tier=high');
 await page.waitForFunction(() => window.__sceneReady === true, null, { timeout: 30000 });
-await page.waitForTimeout(1000);
+await page.waitForTimeout(1200);
 const viewpoints = [
-  ['valley-overview', [-205, 205], -0.92, -0.08],
-  ['road-ground', [-130, 150], -0.98, -0.18],
-  ['hills-sky', [0, -70], 0.1, -0.18],
-  ['toward-sun', [65, 35], 2.0, -0.12],
+  ['road-ground', [-128, 12, 148], [-82, 10, 42]],
+  ['hills-sky', [0, 18, -70], [0, 42, -220]],
+  ['valley-overview', [-205, 92, 205], [0, 0, 0]],
+  ['toward-sun', [65, 22, 35], [180, 28, -120]],
 ];
-for (const [name, position, yaw, pitch] of viewpoints) {
-  await page.evaluate(([p, y, pi]) => {
-    const g = window.__game;
-    g.player.position.set(p[0], g.terrain.heightAt(p[0], p[1]) + 1.8, p[1]);
-    g.player.yaw = y;
-    g.player.pitch = pi;
-  }, [position, yaw, pitch]);
-  await page.waitForTimeout(350);
+for (const [name, position, lookAt] of viewpoints) {
+  await page.evaluate(([p, target]) => {
+    window.__fixedCameraPose = {
+      position: p,
+      lookAt: target,
+    };
+  }, [position, lookAt]);
+  await page.waitForTimeout(500);
   await page.screenshot({ path: path.join(out, `${name}.png`) });
 }
 const perf = await page.evaluate(() => new Promise((resolve) => {

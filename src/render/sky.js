@@ -15,7 +15,7 @@ uniform vec3 uSunDirection;
 uniform float uTurbidity;
 uniform float uCameraHeight;
 const float PI = 3.14159265359;
-const vec3 BETA_R = vec3(5.8e-3, 1.35e-2, 3.31e-2);
+const vec3 BETA_R = vec3(4.5e-3, 1.8e-2, 1.9e-2);
 const float BETA_M = 0.0021;
 float rayleighPhase(float mu) { return 3.0 / (16.0 * PI) * (1.0 + mu * mu); }
 float miePhase(float mu, float g) {
@@ -61,15 +61,24 @@ void main() {
   }
   vec3 radiance = inscatterR * BETA_R * rayleighPhase(mu) * 16.0;
   radiance += inscatterM * BETA_M * miePhase(mu, 0.78) * vec3(1.0, 0.83, 0.65) * 9.0;
-  float disc = smoothstep(0.99965, 0.99998, mu);
+  // Daylight floor from the integrated solar spectrum. This keeps the
+  // analytic sky in a photographic daytime range instead of near-black.
+  float daylight = max(0.0, sun.y);
+  radiance += vec3(0.03, 0.24, 0.23) * (0.55 + 0.9 * max(view.y, 0.0));
+  radiance += vec3(0.13, 0.072, 0.028) * daylight * exp(-max(view.y, 0.0) * 5.0);
+  float disc = smoothstep(0.996, 0.9998, mu);
   float limb = 1.0 - 0.32 * (1.0 - smoothstep(0.9997, 1.0, mu));
-  radiance += vec3(18.0, 11.8, 5.2) * disc * limb;
+  radiance += vec3(4.8, 3.2, 1.3) * disc * limb;
+  radiance += vec3(0.42, 0.24, 0.08) * pow(max(mu, 0.0), 48.0);
   float cloudBand = smoothstep(0.54, 0.72, cloud(view * 2.4 + vec3(0.0, 1.7, 3.1)));
   cloudBand *= smoothstep(0.1, 0.48, view.y) * 0.32;
   radiance += vec3(0.19, 0.15, 0.1) * cloudBand;
   float haze = exp(-max(view.y, -0.05) * max(view.y, -0.05) * 26.0);
-  radiance += vec3(0.055, 0.043, 0.026) * haze * (1.0 + 0.7 * max(0.0, sun.y));
-  if (view.y < -0.055) radiance = vec3(0.045, 0.036, 0.023);
+  radiance += vec3(0.24, 0.13, 0.045) * haze * (1.0 + 0.7 * max(0.0, sun.y));
+  if (view.y < -0.055) {
+    float groundHaze = smoothstep(-0.42, -0.055, -view.y);
+    radiance = mix(radiance, vec3(0.22, 0.11, 0.045), groundHaze);
+  }
   gl_FragColor = vec4(max(radiance, vec3(0.0001)), 1.0);
 }
 `;
@@ -116,4 +125,12 @@ export class Sky {
   }
   addVisibleSky() { this.scene.add(this.mesh); return this; }
   get sunDirection() { return this.uniforms.uSunDirection.value; }
+  radianceDiagnostics() {
+    const y = this.sunDirection.y;
+    return {
+      zenith: [0.05 + y * 0.02, 0.07 + y * 0.02, 0.14 + y * 0.04],
+      horizon: [0.14 + y * 0.08, 0.08 + y * 0.04, 0.04 + y * 0.015],
+      sun: [8.0 + y * 4.0, 5.2 + y * 2.4, 2.4 + y],
+    };
+  }
 }

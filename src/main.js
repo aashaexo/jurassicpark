@@ -32,6 +32,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const probe = renderer.capabilities;
 const queryTier = new URLSearchParams(location.search).get('tier');
+const mode = new URLSearchParams(location.search).get('mode') || 'beauty';
 const tier = queryTier || (probe.maxTextureSize >= 8192 && window.devicePixelRatio <= 2 ? 'high' : 'medium');
 const quality = {
   low: { dpr: 1, shadows: 1024, fog: 0.0026 },
@@ -45,14 +46,20 @@ const camera = new THREE.PerspectiveCamera(67, 1, 0.1, 2200);
 const sky = new Sky(renderer, scene);
 scene.background = sky.horizonRadiance.clone();
 scene.fog = new THREE.FogExp2(sky.horizonRadiance, quality.fog);
-sky.addVisibleSky();
-sky.bakeEnvironment();
-scene.environmentIntensity = 0.62;
+if (mode !== 'normal') {
+  sky.addVisibleSky();
+  sky.bakeEnvironment();
+  scene.environmentIntensity = 0.62;
+} else {
+  sky.mesh.visible = false;
+  scene.background = new THREE.Color(0x808080);
+}
 
-const textures = bakeGroundTextures(renderer, tier);
-const terrain = createTerrain(renderer, textures);
+const textures = mode === 'normal' || mode === 'white' ? null : bakeGroundTextures(renderer, tier);
+const terrain = createTerrain(renderer, textures, mode);
 scene.add(terrain.group);
-scene.add(createRoad(terrain));
+if (mode !== 'normal') scene.add(createRoad(terrain));
+if (mode === 'sky') terrain.group.visible = false;
 
 const sun = new THREE.DirectionalLight(0xffc58e, 8.0);
 sun.castShadow = true;
@@ -85,6 +92,10 @@ hdr.depthTexture.magFilter = THREE.NearestFilter;
 const grade = createGrade(renderer, 1, 1, tier);
 grade.material.uniforms.uFogColor.value.copy(sky.horizonRadiance);
 grade.material.uniforms.uFogDensity.value = quality.fog * 2.0;
+if (mode === 'normal') {
+  grade.material.uniforms.uFogDensity.value = 0;
+}
+if (mode === 'sky') console.table(sky.radianceDiagnostics());
 
 let width = 1, height = 1;
 function resize() {
@@ -122,8 +133,13 @@ function animate() {
   elapsed += frame;
   accumulator += frame;
   while (accumulator >= 1 / 60) {
-    player.update(1 / 60, elapsed);
+    if (!window.__fixedCameraPose) player.update(1 / 60, elapsed);
     accumulator -= 1 / 60;
+  }
+  if (window.__fixedCameraPose) {
+    camera.position.set(...window.__fixedCameraPose.position);
+    camera.lookAt(...window.__fixedCameraPose.lookAt);
+    player.position.set(...window.__fixedCameraPose.position);
   }
   sun.position.copy(player.position).addScaledVector(sky.sunDirection, -260);
   sun.target.position.copy(player.position);
@@ -148,7 +164,7 @@ function animate() {
 animate();
 
 window.__game = {
-  renderer, scene, camera, player, terrain, sky, tier,
+  renderer, scene, camera, player, terrain, sky, tier, mode,
   info: () => ({ fps, calls: sceneCalls, triangles: sceneTriangles }),
 };
 window.__sceneReady = true;

@@ -111,26 +111,24 @@ function patchTerrainMaterial(material, textures) {
   return material;
 }
 
-function addSkirt(group, cx, cz, material) {
-  const skirt = new THREE.Mesh(new THREE.BoxGeometry(CHUNK_SIZE + 1, 8, CHUNK_SIZE + 1), material);
-  skirt.position.set((cx - 2.5) * CHUNK_SIZE, -4, (cz - 2.5) * CHUNK_SIZE);
-  skirt.scale.y = 0.2;
-  skirt.name = `terrain-skirt-${cx}-${cz}`;
-  group.add(skirt);
-}
-
-export function createTerrain(renderer, textures) {
+export function createTerrain(renderer, textures, mode = 'beauty') {
   const group = new THREE.Group();
   group.name = '600m-valley-terrain';
-  const material = patchTerrainMaterial(new THREE.MeshStandardMaterial({
-    color: 0xffffff, roughness: 0.91, metalness: 0,
-    normalMap: textures.grass.normalMap,
-    normalScale: new THREE.Vector2(0.24, 0.24),
-  }), textures);
+  const material = mode === 'normal'
+    ? new THREE.MeshNormalMaterial({ flatShading: false })
+    : mode === 'white'
+      ? new THREE.MeshLambertMaterial({ color: 0xffffff })
+      : patchTerrainMaterial(new THREE.MeshStandardMaterial({
+        color: 0xffffff, roughness: 0.91, metalness: 0,
+        normalMap: textures.grass.normalMap,
+        normalScale: new THREE.Vector2(0.24, 0.24),
+      }), textures);
   for (let cz = 0; cz < CHUNKS; cz++) {
     for (let cx = 0; cx < CHUNKS; cx++) {
-      const near = Math.abs(cx - 2.5) <= 1 && Math.abs(cz - 2.5) <= 1;
-      const segments = near ? 128 : 48;
+      // Correctness pass: use one shared tessellation while validating the
+      // heightfield. LOD is intentionally disabled until boundary morphing
+      // can be added without hiding cracks behind fake skirts.
+      const segments = 96;
       const geometry = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE, segments, segments);
       geometry.rotateX(-Math.PI / 2);
       const pos = geometry.attributes.position;
@@ -144,13 +142,14 @@ export function createTerrain(renderer, textures) {
       mesh.receiveShadow = true;
       mesh.name = `terrain-chunk-${cx}-${cz}-${segments}`;
       group.add(mesh);
-      if (near) addSkirt(group, cx, cz, material);
     }
   }
   const pad = new THREE.Mesh(new THREE.CylinderGeometry(48, 52, 0.7, 64),
-    new THREE.MeshStandardMaterial({ color: 0x615a48, roughness: 0.95 }));
+    mode === 'normal' ? new THREE.MeshNormalMaterial() :
+      mode === 'white' ? new THREE.MeshLambertMaterial({ color: 0xffffff }) :
+        new THREE.MeshStandardMaterial({ color: 0x615a48, roughness: 0.95 }));
   pad.scale.z = 0.58;
-  pad.position.set(142, 9.4, -78);
+  pad.position.set(142, heightAt(142, -78) + 0.35, -78);
   pad.receiveShadow = true;
   pad.name = 'future-gate-pad';
   group.add(pad);
