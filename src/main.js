@@ -295,6 +295,7 @@ class Game {
       this.veg.root.visible = false;
       this.ruins.root.visible = false;
       this.water.root.visible = false;
+      this.dinosaurs.root.visible = false;
     }
     if (this.dinoName || this.parkCapture || this.parkStudio) {
       scene.fog = null;
@@ -343,7 +344,7 @@ class Game {
     this.canopy.setSun(this.sky.sunDir);
     this.atmos = new Atmosphere(this.renderer, this.canopy);
     this.atmos.setTier(this.tier);
-    if (this.dinoName || this.parkCapture) {
+    if (this.dinoName || this.parkCapture || this.parkStudio) {
       this.atmos.enabled = false;
       this.atmos.grade.bypass = true;
     }
