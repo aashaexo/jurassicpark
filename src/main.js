@@ -302,6 +302,27 @@ class Game {
     scene.add(this.fence.root);
     this.jeep = new SafariJeep(this.terrain);
     scene.add(this.jeep.root);
+    this.trailDressing = new THREE.Group();
+    this.trailDressing.name = 'trail-dressing';
+    const wood = new THREE.MeshStandardMaterial({ color: 0x5a3927, roughness: 0.95 });
+    const paint = new THREE.MeshStandardMaterial({ color: 0xd1b36a, roughness: 0.8 });
+    const addBox = (size, x, z, y, material, name) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
+      mesh.name = name;
+      mesh.position.set(x, this.terrain.height(x, z) + y, z);
+      mesh.castShadow = mesh.receiveShadow = true;
+      this.trailDressing.add(mesh);
+    };
+    for (const [x, z, label] of [[5.4, -276, 'route-marker-1'], [8.6, -292, 'route-marker-2'], [5.2, -312, 'route-marker-3']]) {
+      addBox([0.12, 1.4, 0.12], x, z, 0.7, wood, label);
+      addBox([0.65, 0.35, 0.06], x, z - 0.02, 1.35, paint, `${label}-arrow`);
+    }
+    addBox([2.4, 1.8, 0.12], 4.5, -264, 1.0, wood, 'park-map-board');
+    addBox([1.8, 0.9, 0.08], 4.5, -264.08, 1.05, paint, 'park-map-panel');
+    for (const [x, z] of [[9.5, -278], [10.2, -279.2], [6.4, -306]]) {
+      addBox([0.8, 0.55, 0.65], x, z, 0.28, wood, 'trail-crate');
+    }
+    scene.add(this.trailDressing);
     if (this.parkCapture) {
       for (const [x, z, radius] of [
         [7, -304, 6], [7, -286, 3], [7, -270, 3],

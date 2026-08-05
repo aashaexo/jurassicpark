@@ -438,11 +438,6 @@ export class CreatureRig {
   update(dt, { walk = false } = {}) {
     this.phase += dt * (walk ? 1.15 : 0.38);
     const p = this.phase;
-    if (this.species === 'gallimimus' && this.terrain) {
-      this.group.position.x += Math.sin(p * 0.18 + this.seed) * dt * 0.7;
-      this.group.position.z += Math.cos(p * 0.16 + this.seed * 0.7) * dt * 0.7;
-      this.group.rotation.y = Math.sin(p * 0.12 + this.seed) * 0.35;
-    }
     if (this.species === 'dilophosaurus' && this.bones.head) {
       this.bones.head.rotation.x = Math.sin(p * 0.45) * 0.025;
     }
@@ -523,6 +518,19 @@ export class DinosaurSystem {
     this.turntable = Boolean(turntable);
     this.debugNormals = Boolean(debugNormals);
     this.audio = null;
+    this.flockVelocity = new Map();
+    this.dust = new THREE.Group();
+    this.dust.name = 'gallimimus-foot-dust';
+    const dustMat = new THREE.MeshBasicMaterial({
+      color: 0x9a7650, transparent: true, opacity: 0.18, depthWrite: false,
+    });
+    const dustGeo = new THREE.SphereGeometry(0.12, 6, 4);
+    for (let i = 0; i < 36; i++) {
+      const puff = new THREE.Mesh(dustGeo, dustMat);
+      puff.visible = false;
+      this.dust.add(puff);
+    }
+    this.root.add(this.dust);
     if (turntable) {
       const dino = new CreatureRig(turntable, {
         seed: 7, terrain: null, debugNormals: this.debugNormals,
@@ -549,6 +557,10 @@ export class DinosaurSystem {
         const a = i / 12 * Math.PI * 2;
         add('gallimimus', 42 + Math.cos(a) * 10, -300 + Math.sin(a) * 8, 20 + i, 0.72);
       }
+      for (const dino of this.creatures.filter(c => c.species === 'gallimimus')) {
+        this.flockVelocity.set(dino, new THREE.Vector3(
+          Math.sin(dino.seed) * 0.4, 0, -0.75 + Math.cos(dino.seed * 0.7) * 0.15));
+      }
       add('dilophosaurus', 13, -286, 41, 0.7);
       add('trex', 70, -360, 51, 1);
       console.info('[dinosaurs] polygonisation', Object.fromEntries(
@@ -567,9 +579,24 @@ export class DinosaurSystem {
       for (const dino of flock) center.add(dino.group.position);
       center.multiplyScalar(1 / flock.length);
       for (const dino of flock) {
-        const pull = center.clone().sub(dino.group.position).multiplyScalar(0.006);
-        dino.group.position.x += pull.x;
-        dino.group.position.z += pull.z;
+        const velocity = this.flockVelocity.get(dino);
+        const cohesion = center.clone().sub(dino.group.position).multiplyScalar(0.018);
+        const separation = new THREE.Vector3();
+        const alignment = new THREE.Vector3();
+        for (const other of flock) {
+          if (other === dino) continue;
+          const delta = dino.group.position.clone().sub(other.group.position);
+          const d2 = Math.max(0.25, delta.lengthSq());
+          if (d2 < 64) separation.add(delta.multiplyScalar(1 / d2));
+          alignment.add(this.flockVelocity.get(other));
+        }
+        alignment.multiplyScalar(1 / (flock.length - 1));
+        velocity.add(cohesion.multiplyScalar(0.35)).add(separation.multiplyScalar(0.8))
+          .add(alignment.sub(velocity).multiplyScalar(0.16));
+        velocity.y = 0;
+        velocity.clampLength(0.35, 1.15);
+        dino.group.position.addScaledVector(velocity, dt);
+        dino.group.rotation.y = Math.atan2(velocity.x, velocity.z);
       }
     }
     for (const dino of this.creatures) {
@@ -581,6 +608,22 @@ export class DinosaurSystem {
         const open = Math.hypot(dx, dz) < 6;
         dino.frill.scale.x += ((open ? 1 : 0.12) - dino.frill.scale.x) * Math.min(1, dt * 8);
       }
+    }
+    let puffIndex = 0;
+    for (const dino of flock) {
+      const velocity = this.flockVelocity.get(dino);
+      if (!velocity || velocity.lengthSq() < 0.3) continue;
+      const puff = this.dust.children[puffIndex++ % this.dust.children.length];
+      puff.visible = true;
+      puff.position.copy(dino.group.position);
+      puff.position.y += 0.12 + (this.time * 0.8 % 0.35);
+      puff.position.x += Math.sin(this.time * 7 + dino.seed) * 0.22;
+      puff.position.z += Math.cos(this.time * 6 + dino.seed) * 0.22;
+      const s = 0.5 + ((this.time * 2 + dino.seed) % 1) * 1.5;
+      puff.scale.setScalar(s);
+    }
+    for (; puffIndex < this.dust.children.length; puffIndex++) {
+      this.dust.children[puffIndex].visible = false;
     }
     if (!this.turntable && this.audio &&
         Math.floor(this.time) !== Math.floor(this.time - dt) &&

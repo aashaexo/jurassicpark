@@ -589,3 +589,19 @@ remaining weaknesses are that flock steering, dust, the Dilophosaurus
 proximity frill, and T-Rex audio cues are still simplified. Final cinematic
 capture coverage is also incomplete. No visual acceptance is inferred from
 these numbers; they only describe fresh capture and topology checks.
+
+## Current content pass
+
+The final capture harness now warms and streams vegetation around each shot
+position, validates named-subject coverage and first-hit visibility, and
+records nearby vegetation counts. The nine final frames have been regenerated
+with distinct cameras. Gallimimus now has velocity-based cohesion, separation,
+alignment, and small foot-dust puffs; these are procedural approximations, not
+an authored animation. Dilophosaurus has a separate proximity-driven frill.
+Trail dressing includes route markers, a park map board, and crates.
+
+Known weaknesses remain: the three non-zero orientation-flip counts above have
+not been eliminated, the tan studio sliver has not been conclusively isolated,
+and a normal-run frame-time/draw-call/error audit is still pending. These
+claims describe implementation and harness results only; they are not visual
+acceptance.
