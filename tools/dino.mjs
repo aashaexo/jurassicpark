@@ -30,8 +30,14 @@ await run({
     const center = box.getCenter(g.camera.position.clone());
     const size = box.getSize(g.camera.position.clone());
     const fov = g.camera.fov * Math.PI / 180;
-    const vertical = Math.max(size.y, mode === 'side' ? size.z : size.x);
-    const distance = vertical / (2 * Math.tan(fov * 0.5)) * 2.6;
+    const aspect = innerWidth / innerHeight;
+    const vHalf = fov * 0.5;
+    const hHalf = Math.atan(Math.tan(vHalf) * aspect);
+    const visibleWidth = mode === 'side' ? size.z : size.x;
+    const distance = Math.max(
+      size.y / (2 * Math.tan(vHalf)),
+      visibleWidth / (2 * Math.tan(hHalf)),
+    ) * (g.dinosaurs.creatures[0].species === 'trex' ? 3.2 : 2.0);
     let offset;
     if (mode === 'side') offset = center.clone().set(distance, 0, 0);
     else if (mode === 'front') offset = center.clone().set(-distance * 0.68, 0, -distance * 0.74);
