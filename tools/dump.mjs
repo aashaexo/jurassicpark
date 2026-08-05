@@ -14,9 +14,9 @@ try {
     window.__game.scene.traverse((object) => {
       if (!object.isMesh) return;
       object.updateMatrixWorld(true);
-      object.geometry.computeBoundingSphere();
-      const sphere = object.geometry.boundingSphere.clone();
-      sphere.applyMatrix4(object.matrixWorld);
+      const sphere = object.boundingSphere
+        ? object.boundingSphere.clone().applyMatrix4(object.matrixWorld)
+        : (object.geometry.computeBoundingSphere(), object.geometry.boundingSphere.clone().applyMatrix4(object.matrixWorld));
       meshes.push({
         name: object.name || object.type,
         center: sphere.center.toArray().map((v) => +v.toFixed(2)),

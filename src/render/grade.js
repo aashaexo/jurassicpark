@@ -49,7 +49,8 @@ void main() {
   c += max(blur - 0.72, 0.0) * uBloom * 0.28;
   float depth = texture2D(tDepth, vUv).r;
   float viewDepth = (uNearFar.x * uNearFar.y) / ((uNearFar.y - uNearFar.x) * depth - uNearFar.y);
-  float aerial = 1.0 - exp(-uFogDensity * abs(viewDepth));
+  viewDepth = max(0.0, -viewDepth);
+  float aerial = (1.0 - exp(-uFogDensity * viewDepth)) * smoothstep(0.0005, 0.01, depth);
   c = mix(c, uFogColor, clamp(aerial, 0.0, 0.82));
   float nearBlur = smoothstep(0.0, 0.018, depth) * smoothstep(0.09, 0.02, depth);
   c = mix(c, blur, nearBlur * uDof);

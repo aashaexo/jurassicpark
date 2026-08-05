@@ -5,8 +5,8 @@
   "consoleErrors": [],
   "info": {
     "fps": 10.000000000000002,
-    "calls": 28,
-    "triangles": 465264
+    "calls": 287,
+    "triangles": 1035256
   },
   "radiance": {
     "zenith": [
@@ -463,8 +463,8 @@
       "kind": "ground",
       "render": {
         "fps": 10.90909090909091,
-        "calls": 28,
-        "triangles": 465264
+        "calls": 287,
+        "triangles": 1035256
       }
     },
     {
@@ -483,8 +483,8 @@
       "kind": "overview",
       "render": {
         "fps": 10.000000000000002,
-        "calls": 29,
-        "triangles": 483696
+        "calls": 291,
+        "triangles": 1066668
       }
     },
     {
@@ -503,8 +503,8 @@
       "kind": "overview",
       "render": {
         "fps": 10.000000000000002,
-        "calls": 32,
-        "triangles": 538992
+        "calls": 338,
+        "triangles": 1186276
       }
     },
     {
@@ -523,13 +523,13 @@
       "kind": "ground",
       "render": {
         "fps": 10.000000000000002,
-        "calls": 28,
-        "triangles": 465264
+        "calls": 287,
+        "triangles": 1035256
       }
     }
   ],
   "perf": {
-    "fps": 0.6670446586399373,
-    "frameMs": 1499.1499999999069
+    "fps": 0.5639521768554637,
+    "frameMs": 1773.199999999808
   }
 }

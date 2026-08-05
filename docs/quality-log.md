@@ -124,3 +124,34 @@ small central island while the sky dome's underside filled the frame.
 
 The `tod` query presets `morning`, `noon`, `afternoon`, and `dusk` all load
 without page errors and keep the sun above the horizon.
+
+## Artifact isolation and Phase 2 vegetation
+
+- `media/diagnostic-grade-off-overview.png` — disabling the final grade removes
+  the pale wedge pattern; the raw scene has continuous terrain shading. This
+  identified the artifact as the aerial/depth portion of the grade pass, not
+  chunk splat interpolation.
+- `media/diagnostic-road-off-overview.png` — hiding the road leaves a
+  continuous valley surface without the dark trench, isolating the second
+  artifact to the road ribbon and its grading.
+- The grade depth reconstruction now clamps invalid/negative view depths and
+  rejects the clear-depth range before applying aerial perspective.
+- The road ribbon samples `heightAt` at both edges, sits flush with the
+  graded terrain, uses a light dirt material, and no longer contains black
+  rut tubes.
+- Phase 2 now includes deterministic, seeded, tile-bucketed instanced
+  vegetation for canopy trees, palms, broadleaf understory, ferns, tussock
+  grass, and fallen logs. Plant geometry uses crossed/bent leaf cards and
+  swept trunk geometry, with vertex-stage wind, per-instance tint, and
+  species-specific bucket culling.
+- `media/road-ground.png` — dense vegetation now frames the road and the
+  ribbon is bright enough to read as a track; the foliage is visibly
+  procedural and still needs alpha-tested leaf silhouettes and more species
+  variation to reach the reference.
+- `media/valley-overview.png` — the valley remains readable through a dense
+  green understory/canopy layer with no large pale wedge overlays; the
+  vegetation currently reads as a first instanced pass rather than a fully
+  layered jungle.
+- `media/hills-sky.png` — the hills remain visible behind the vegetation and
+  the sky-to-ground transition is continuous; distant foliage is still too
+  uniform compared with the reference.

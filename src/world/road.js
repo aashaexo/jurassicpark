@@ -50,10 +50,10 @@ export function createRoad(terrain, textures = null) {
     const next = centerAt(Math.min(1, t + 1 / segments));
     const tangent = next.sub(center).normalize();
     const side = new THREE.Vector2(-tangent.y, tangent.x);
-    const y = terrain.heightAt(center.x, center.y) + 0.09;
     const bank = Math.sin(t * Math.PI * 14.0) * 0.06;
     for (const offset of [-width, width]) {
       const p = center.clone().addScaledVector(side, offset);
+      const y = terrain.heightAt(p.x, p.y) + 0.12;
       positions.push(p.x, y + bank * (offset / width), p.y);
       uvs.push(t * 18, offset / width * 0.5 + 0.5);
     }
@@ -68,8 +68,8 @@ export function createRoad(terrain, textures = null) {
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   const material = new THREE.MeshStandardMaterial({
-    color: 0x56351e,
-    roughness: 0.92,
+    color: 0xffffff,
+    roughness: 0.96,
     metalness: 0,
     map: textures?.dirt?.map || null,
     normalMap: textures?.dirt?.normalMap || null,

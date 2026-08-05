@@ -6,6 +6,7 @@ import { createTerrain } from './world/terrain.js';
 import { createRoad, roadSample } from './world/road.js';
 import { validateTerrainGroup } from './world/terrainDiagnostics.js';
 import { PlayerController } from './player/controller.js';
+import { createVegetation } from './world/vegetation.js';
 
 const canvas = document.querySelector('#view');
 const statsNode = document.querySelector('#stats');
@@ -34,6 +35,9 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const probe = renderer.capabilities;
 const queryTier = new URLSearchParams(location.search).get('tier');
 const mode = new URLSearchParams(location.search).get('mode') || 'beauty';
+const params = new URLSearchParams(location.search);
+const gradeEnabled = params.get('grade') !== 'off';
+const roadEnabled = params.get('road') !== 'off';
 const tier = queryTier || (probe.maxTextureSize >= 8192 && window.devicePixelRatio <= 2 ? 'high' : 'medium');
 const quality = {
   low: { dpr: 1, shadows: 1024, fog: 0.0026 },
@@ -68,7 +72,9 @@ if (mode !== 'normal') {
 const textures = mode === 'normal' || mode === 'white' ? null : bakeGroundTextures(renderer, tier);
 const terrain = createTerrain(renderer, textures, mode);
 scene.add(terrain.group);
-if (mode !== 'normal') scene.add(createRoad(terrain, textures));
+if (mode !== 'normal' && roadEnabled) scene.add(createRoad(terrain, textures));
+const vegetation = mode === 'beauty' ? createVegetation(terrain, roadSample) : null;
+if (vegetation) scene.add(vegetation);
 if (mode === 'sky') terrain.group.visible = false;
 
 const sun = new THREE.DirectionalLight(0xffead1, 4.2);
@@ -161,7 +167,12 @@ function animate() {
   renderer.render(scene, camera);
   sceneCalls = renderer.info.render.calls;
   sceneTriangles = renderer.info.render.triangles;
-  grade.render(hdr, elapsed);
+  if (gradeEnabled) {
+    grade.render(hdr, elapsed);
+  } else {
+    renderer.setRenderTarget(null);
+    renderer.render(scene, camera);
+  }
   frames++;
   if (elapsed > 1) {
     fps = frames / elapsed;
@@ -177,7 +188,14 @@ animate();
 
 window.__game = {
   renderer, scene, camera, player, terrain, sky, tier, mode, roadSample,
+  hdr, grade,
   validateTerrain: () => validateTerrainGroup(terrain.group),
-  info: () => ({ fps, calls: sceneCalls, triangles: sceneTriangles }),
+  info: () => ({
+    fps,
+    calls: sceneCalls,
+    triangles: sceneTriangles,
+    vegetationInstances: vegetation?.userData.instanceCount || 0,
+    vegetationBuckets: vegetation?.userData.bucketCount || 0,
+  }),
 };
 window.__sceneReady = true;

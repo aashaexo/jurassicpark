@@ -8,7 +8,8 @@
     "serve": "node tools/serve.mjs",
     "shoot": "node tools/shoot.mjs",
     "perf": "node tools/perf.mjs",
-    "dump": "node tools/dump.mjs"
+    "dump": "node tools/dump.mjs",
+    "isolate": "node tools/isolate.mjs"
   },
   "dependencies": {
     "playwright": "^1.62.0"
