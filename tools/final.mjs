@@ -18,6 +18,7 @@ const shots = [
 ];
 for (const [name] of shots) fs.rmSync(path.join(out, name), { force: true });
 const start = Date.now();
+const failures = [];
 await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page }) => {
   console.log('warming renderer and vegetation buckets');
   await page.waitForTimeout(3000);
@@ -57,7 +58,7 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
         }
         if (nearbyVegetation < 8) throw new Error(`${name} has only ${nearbyVegetation} nearby vegetation instances`);
         return { position: g.camera.position.toArray(), nearbyVegetation,
-          coverage: null, contained: true, obstructionFree: true };
+          coverage: null, contained: true, obstructionFree: true, valid: true };
       }
       if (!subject) throw new Error(`missing final subject: ${subjectKind}`);
       if (subjectKind !== 'gate' && subjectKind !== 'fence' && subjectKind !== 'jeep') {
@@ -75,7 +76,7 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
       const direction = look.clone().sub(base).normalize();
       let chosen = null;
       let best = null;
-      const candidates = [0, 6, 12, 20, 30, 42, 56];
+      const candidates = [-16, -8, 0, 6, 12, 20, 30, 42, 56];
       for (const back of candidates) {
         const candidate = base.clone().addScaledVector(direction, -back);
         g.camera.position.copy(candidate);
@@ -96,6 +97,8 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
           return false;
         };
         const aims = [center];
+        for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y])
+          for (const z of [box.min.z, box.max.z]) aims.push(new T.Vector3(x, y, z));
         if (subjectKind === 'gate') aims.push(center.clone().setX(center.x + 4.8));
         if (subjectKind === 'gallimimus') {
           for (const c of g.dinosaurs.creatures.filter(c => c.species === 'gallimimus')) {
@@ -104,15 +107,16 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
             aims.push(p);
           }
         }
-        const obstructionFree = aims.some(aim => {
+        const clearRays = aims.filter(aim => {
           const ray = new T.Raycaster(candidate, aim.clone().sub(candidate).normalize());
           const hits = ray.intersectObjects(g.scene.children, true);
           return hits.length > 0 && belongsToSubject(hits[0].object);
-        });
-        const score = coverage - (obstructionFree ? 0 : 1) - (contained ? 0 : 0.25);
-        if (!best || score > best.score) best = { candidate, coverage, contained, obstructionFree, score };
-        if (coverage >= 0.02 && obstructionFree) {
-          chosen = { candidate, coverage, contained, obstructionFree };
+        }).length;
+        const obstructionFree = clearRays >= 6;
+        const score = coverage - (clearRays / aims.length) * 0.5 - (contained ? 0 : 0.25);
+        if (!best || score > best.score) best = { candidate, coverage, contained, obstructionFree, clearRays, score };
+        if (coverage >= 0.08 && obstructionFree) {
+          chosen = { candidate, coverage, contained, obstructionFree, clearRays };
           break;
         }
       }
@@ -131,7 +135,8 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
       if (nearbyVegetation < 8) throw new Error(`${name} has only ${nearbyVegetation} nearby vegetation instances`);
       return { position: g.camera.position.toArray(), nearbyVegetation,
         coverage: chosen.coverage, contained: chosen.contained,
-        obstructionFree: chosen.obstructionFree };
+        obstructionFree: chosen.obstructionFree, clearRays: chosen.clearRays,
+        valid: chosen.coverage >= 0.08 && chosen.obstructionFree };
     }, [name, subjectKind, pos, target]);
     await page.waitForTimeout(700);
     const actual = await page.evaluate(() => window.__game.camera.position.toArray());
@@ -143,7 +148,8 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
       new Promise((_, reject) => setTimeout(() =>
         reject(new Error(`capture timeout: ${name}`)), 300_000)),
     ]);
-    console.log(`captured ${name} in ${Date.now() - shotStart} ms camera=${actual.map(v => v.toFixed(3)).join(',')} coverage=${settled.coverage == null ? 'n/a' : settled.coverage.toFixed(3)} obstructionFree=${settled.obstructionFree} nearbyVegetation=${settled.nearbyVegetation} subject=${subjectKind || 'valley'}`);
+    if (!settled.valid) failures.push(`${name}: coverage=${settled.coverage?.toFixed(3) ?? 'n/a'}, clearRays=${settled.clearRays ?? 'n/a'}`);
+    console.log(`captured ${name} in ${Date.now() - shotStart} ms camera=${actual.map(v => v.toFixed(3)).join(',')} coverage=${settled.coverage == null ? 'n/a' : settled.coverage.toFixed(3)} clearRays=${settled.clearRays ?? 'n/a'} valid=${settled.valid} nearbyVegetation=${settled.nearbyVegetation} subject=${subjectKind || 'valley'}`);
   }
 });
 for (const [name] of shots) {
@@ -152,4 +158,5 @@ for (const [name] of shots) {
     throw new Error(`stale or missing final capture: ${file}`);
   }
 }
+if (failures.length) throw new Error(`invalid final captures:\n${failures.join('\n')}`);
 finish(process.exitCode || 0);
