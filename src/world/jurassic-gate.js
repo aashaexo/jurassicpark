@@ -95,22 +95,6 @@ export class JurassicGate {
       }
       cursor += 0.9;
     }
-    const jungleLeaf = new THREE.MeshStandardMaterial({ color: 0x263b26, roughness: 1 });
-    const jungleTrunk = new THREE.MeshStandardMaterial({ color: 0x312c22, roughness: 1 });
-    for (const side of [-1, 1]) for (let i = 0; i < 5; i++) {
-      const tx = centerX + side * (7.2 + (i % 2) * 1.5);
-      const tz = z - 12 + i * 5;
-      const ty = terrain.height(tx, tz);
-      this.root.add(log('gate-side-tree-trunk', 0.18 + (i % 3) * 0.08, 5.5,
-        jungleTrunk, new THREE.Vector3(tx - centerX, ty + 2.7, tz - z)));
-      const canopy = new THREE.Mesh(new THREE.IcosahedronGeometry(1.8 + (i % 2) * 0.7, 1),
-        jungleLeaf);
-      canopy.name = 'gate-side-jungle';
-      canopy.position.set(tx - centerX, ty + 5.3, tz - z);
-      canopy.scale.set(1.2, 1.5, 1.1);
-      canopy.castShadow = true;
-      this.root.add(canopy);
-    }
     for (const x of [-4.25, 4.25]) {
       this.root.add(box('torch-sconce', [0.3, 1.5, 0.3], timber,
         new THREE.Vector3(x, y + 4.5, z - 1.7)));
