@@ -302,7 +302,8 @@ class Game {
     scene.add(this.jeep.root);
     if (this.parkCapture) {
       for (const [x, z, radius] of [
-        [7, -304, 10], [-20, -326, 9], [-8, -296, 7],
+        [7, -304, 10], [7, -280, 7], [7, -256, 6],
+        [-20, -326, 9], [-8, -296, 7],
         [42, -300, 9], [13, -286, 6], [70, -360, 8],
       ]) this.veg.suppressZone(x, z, radius);
     }

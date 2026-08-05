@@ -23,8 +23,9 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high&park=1' }, async (
   await page.waitForTimeout(3000);
   for (const [name, pos, target] of shots) {
     console.log(`capturing ${name}`);
-    await page.evaluate(([name, pos, target]) => {
+    const settled = await page.evaluate(([name, pos, target]) => {
       const g = window.__game;
+      g.setPaused(true);
       g.gate.root.visible = name.includes('gate');
       g.fence.root.visible = name.includes('fence');
       g.jeep.root.visible = name.includes('jeep');
@@ -35,15 +36,19 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high&park=1' }, async (
       g.camera.position.set(pos[0], y, pos[1]);
       g.camera.lookAt(target[0], ty, target[1]);
       g.camera.updateMatrixWorld();
+      return g.camera.position.toArray();
     }, [name, pos, target]);
     await page.waitForTimeout(700);
+    const actual = await page.evaluate(() => window.__game.camera.position.toArray());
+    const error = Math.hypot(actual[0] - settled[0], actual[1] - settled[1], actual[2] - settled[2]);
+    if (error > 0.05) throw new Error(`${name} camera moved ${error.toFixed(3)}m after settling`);
     const shotStart = Date.now();
     await Promise.race([
       capture(page, path.join(out, name)),
       new Promise((_, reject) => setTimeout(() =>
         reject(new Error(`capture timeout: ${name}`)), 300_000)),
     ]);
-    console.log(`captured ${name} in ${Date.now() - shotStart} ms`);
+    console.log(`captured ${name} in ${Date.now() - shotStart} ms camera=${actual.map(v => v.toFixed(3)).join(',')}`);
   }
 });
 for (const [name] of shots) {
