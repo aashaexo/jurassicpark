@@ -1,57 +1,53 @@
-# Jurassic Park Valley
+# Jurassic Park
 
-An early procedural scene study for a photorealistic Jurassic Park valley:
-warm Isla Nublar afternoon light, a graded jeep road, a future gate pad, a
-shallow lagoon basin, and jungle hills. Everything visible is generated in
-Three.js at runtime; no models, image textures, HDR files, or audio are
-committed.
+This project is derived from
+[StarKnightt's jungle-trail](https://github.com/StarKnightt/jungle-trail),
+which is MIT-licensed. The original license and copyright notice are preserved
+in [`LICENSE-jungle-trail`](LICENSE-jungle-trail), and the reused systems are
+listed in [`NOTICE`](NOTICE). Our Jurassic Park-specific additions are covered
+by [`LICENSE`](LICENSE).
 
-The rendering approach is inspired by
-[`StarKnightt/jungle-trail`](https://github.com/StarKnightt/jungle-trail), whose
-procedural GPU texture baking, sky/IBL pairing, terrain chunking, and restrained
-HDR post-processing were used as technical reference. This project is an
-independent implementation for a wider open valley rather than a copied scene.
+Jurassic Park is a procedural Three.js exploration scene built on that
+jungle-trail foundation. The verified base provides a dense tropical trail,
+layered vegetation, procedural ruins, a waterfall and brook, atmospheric
+lighting, first-person traversal, synthesized ambience, and deterministic
+capture tooling.
 
-## Run
+## Running locally
+
+There is no build step. Install dependencies for the capture tools, then serve
+the page over HTTP:
 
 ```bash
 npm install
 npm run serve
 ```
 
-Open <http://localhost:8099/>. There is intentionally no bundler or build step;
-Three.js r170 is imported from jsDelivr through the import map.
+Open <http://localhost:8099/>.
 
-For a three-second high-quality headless frame-time sample, run
-`npm run perf` while the server is running. `npm run shoot` captures the four
-Phase 1 viewpoints into `media/` and fails on browser errors or meaningful
-warnings.
+Deterministic baseline captures:
 
-Controls: click for pointer lock, WASD to walk, Shift to sprint, Space to jump,
-F to toggle spectator/free-fly mode, and F3 to toggle diagnostics.
+```bash
+npm run shoot
+```
 
-## Phase 1 architecture
+Diagnostics:
 
-- `src/main.js`: WebGL renderer, half-float HDR target, fixed-step simulation,
-  quality tiers, player-following shadow frustum, diagnostics.
-- `src/render/sky.js`: analytic Rayleigh/Mie-inspired sky, sun disc, haze,
-  clouds, cube capture and PMREM environment lighting.
-- `src/world/terrain.js`: chunked 600 m valley heightfield with dense near
-  sampling, coarse far sampling, skirts, basin, hills, gate pad, drainage
-  shaping, and slope/road/height-weighted PBR splatting.
-- `src/world/road.js`: spline road with cut/fill, banking, shoulder and ruts.
-- `src/gfx/`: GLSL noise and GPU-baked albedo/normal/ORM material sets.
-- `src/render/grade.js`: HDR fullscreen grade with bloom, AO-like depth darkening,
-  DOF, vignette, aberration and grain.
-- `src/player/`: first-person/spectator controller and terrain contact.
+```bash
+npm run dump
+npm run isolate
+```
 
-Later phases will add procedural vegetation, the park gate, dinosaurs,
-water/lagoon detail, signage, and audio.
+## Base systems
 
-## Visual comparison evidence
+- procedural heightfield terrain and trail/path shaping;
+- 100,000+ deterministic plants across sixteen species;
+- bent leaf cards, swept tubes, alpha-tested atlases and analytical canopy
+  transmittance;
+- procedural ruins, stone materials, brook, spillway and waterfall;
+- atmospheric scattering, volumetric effects, HDR grading and bloom;
+- first-person player body, collision world and traversal;
+- synthesized jungle ambience and deterministic browser capture tools.
 
-The committed `media/reference-*.jpg` files are screenshots from the
-`/home/ubuntu/refs/jungle-trail` reference project. The matching Phase 1
-captures are `media/valley-overview.png`, `media/road-ground.png`,
-`media/hills-sky.png`, and `media/toward-sun.png`. They are evidence-only
-images and are not runtime art assets.
+Jurassic Park-specific gate architecture, vehicles, dinosaurs and signage are
+deferred until this base remains stable.

@@ -1,3 +1,42 @@
+## 2026-08-05 — jungle-trail foundation pivot
+
+The from-scratch valley renderer and its species turntable remain preserved in
+the preceding commit, including the foliage debug captures. Per the approved
+direction change, this branch now builds on the MIT-licensed
+`StarKnightt/jungle-trail` source instead of continuing that renderer.
+
+Baseline verification after the import:
+
+- `npm install` completed with zero vulnerabilities.
+- `npm run dump` passed: terrain bounds are `180 × 48.428 × 492 m`,
+  matching jungle-trail's authored corridor, with `131,434` vegetation
+  instances across `2,575` meshes.
+- `npm run shoot -- baseline --tier high --w 1280 --h 720` completed with no
+  browser errors or warnings. The software adapter reported 234–505 scene
+  calls and 2.66–6.59 million triangles across the seven deterministic stops.
+- `npm run isolate` produced `media/diagnostic-jungle-base.png`, hiding
+  vegetation, ruins and water while retaining the terrain/atmosphere.
+
+Honest reads of the imported baseline shots in `shots/baseline/`:
+
+- `02.png` — a dark, enclosed trailhead with dense green vegetation and a
+  readable path; it looks like a stylized but coherent rainforest corridor.
+- `16.png` — a particularly closed-in, dark understory view with layered green
+  foliage and little visible sky.
+- `34.png` — the trail opens toward a brighter clearing; the warm opening and
+  surrounding vegetation establish depth better than the old renderer.
+- `52.png` — dense foliage frames a brighter central route, with strong canopy
+  occlusion and a continuous ground path.
+- `68.png` — the corridor remains richly layered and green, with a broad
+  illuminated opening ahead.
+- `84.png` — the scene transitions toward the ruins/falls area; distant
+  structures and brighter sky are visible through vegetation.
+- `96.png` — the endpoint reads as a dark, enclosed ruin/waterfall approach
+  with strong foreground silhouettes and a brighter distant opening.
+
+The imported baseline is visually much closer to the jungle-trail reference
+than the previous 600 m valley pass. The adapter is SwiftShader in this
+environment, so the reported FPS is not a hardware-performance claim.
 # Phase 1 visual quality log
 
 All beauty captures use the fixed positions and look-at targets in

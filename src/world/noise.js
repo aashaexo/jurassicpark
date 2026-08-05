@@ -1,66 +1,94 @@
-const TABLE = new Uint8Array(512);
-function mulberry32(seed) {
-  return () => {
-    seed |= 0;
-    seed = seed + 0x6D2B79F5 | 0;
-    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
-    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+/* CPU noise.
+ *
+ * The heightfield is authoritative on the CPU rather than displaced in a vertex
+ * shader, because the player walks on it, trees are planted on it and the river
+ * has to find the bottom of it. Any of those reading a different surface than
+ * the one being drawn shows up immediately as feet sinking into the ground or
+ * trunks hovering, so there is exactly one copy of the terrain height and it
+ * lives here.
+ */
+
+/** Small, fast, well-distributed integer hash → seeded RNG. */
+export function makeRng(seed) {
+  let s = seed >>> 0;
+  return function rng() {
+    s ^= s << 13; s >>>= 0;
+    s ^= s >> 17;
+    s ^= s << 5;  s >>>= 0;
+    return s / 4294967296;
   };
 }
+
+/** Classic Perlin permutation table, shuffled by the seed. */
+function permTable(seed) {
+  const rng = makeRng(seed);
+  const p = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) p[i] = i;
+  for (let i = 255; i > 0; i--) {
+    const j = (rng() * (i + 1)) | 0;
+    const t = p[i]; p[i] = p[j]; p[j] = t;
+  }
+  const full = new Uint8Array(512);
+  for (let i = 0; i < 512; i++) full[i] = p[i & 255];
+  return full;
+}
+
+const G2 = [
+  1, 1, -1, 1, 1, -1, -1, -1,
+  1, 0, -1, 0, 0, 1, 0, -1,
+];
+
 export class Noise2D {
-  constructor(seed = 2026) {
-    const random = mulberry32(seed);
-    const p = Array.from({ length: 256 }, (_, i) => i);
-    for (let i = 255; i > 0; i--) {
-      const j = Math.floor(random() * (i + 1));
-      [p[i], p[j]] = [p[j], p[i]];
-    }
-    for (let i = 0; i < 512; i++) TABLE[i] = p[i & 255];
-  }
-  value(x, z) {
-    const ix = Math.floor(x), iz = Math.floor(z);
-    const fx = x - ix, fz = z - iz;
-    const fade = (t) => t * t * t * (t * (t * 6 - 15) + 10);
-    const u = fade(fx), v = fade(fz);
-    const grad = (h, dx, dz) => {
-      const a = h & 3;
-      return ((a & 1) ? dx : -dx) + ((a & 2) ? dz : -dz);
+  constructor(seed = 1337) { this.p = permTable(seed); }
+
+  /** Perlin noise, roughly [-1, 1]. */
+  n(x, y) {
+    const p = this.p;
+    const X = Math.floor(x) & 255, Y = Math.floor(y) & 255;
+    const xf = x - Math.floor(x), yf = y - Math.floor(y);
+    const u = xf * xf * xf * (xf * (xf * 6 - 15) + 10);
+    const v = yf * yf * yf * (yf * (yf * 6 - 15) + 10);
+
+    const grad = (hash, dx, dy) => {
+      const h = (hash & 7) * 2;
+      return G2[h] * dx + G2[h + 1] * dy;
     };
-    const X = ix & 255, Z = iz & 255;
-    const aa = TABLE[TABLE[X] + Z], ab = TABLE[TABLE[X] + Z + 1];
-    const ba = TABLE[TABLE[X + 1] + Z], bb = TABLE[TABLE[X + 1] + Z + 1];
-    const x0 = grad(aa, fx, fz), x1 = grad(ba, fx - 1, fz);
-    const x2 = grad(ab, fx, fz - 1), x3 = grad(bb, fx - 1, fz - 1);
-    const a = x0 + (x1 - x0) * u;
-    const b = x2 + (x3 - x2) * u;
-    return (a + (b - a) * v) * 0.5 + 0.5;
+    const aa = p[p[X] + Y], ab = p[p[X] + Y + 1];
+    const ba = p[p[X + 1] + Y], bb = p[p[X + 1] + Y + 1];
+
+    const x1 = grad(aa, xf, yf) + u * (grad(ba, xf - 1, yf) - grad(aa, xf, yf));
+    const x2 = grad(ab, xf, yf - 1) + u * (grad(bb, xf - 1, yf - 1) - grad(ab, xf, yf - 1));
+    return (x1 + v * (x2 - x1)) * 1.4;
   }
-  fbm(x, z, octaves = 5, gain = 0.5) {
-    let value = 0, amp = 0.5, total = 0;
-    for (let i = 0; i < octaves; i++) {
-      value += this.value(x, z) * amp;
-      total += amp;
-      x = x * 2.02 + 17.7;
-      z = z * 2.02 - 11.3;
-      amp *= gain;
+
+  /** Sum of octaves. `gain` < 0.5 gives smooth rolling ground, > 0.5 gets rocky. */
+  fbm(x, y, oct = 5, gain = 0.5, lac = 2.0) {
+    let s = 0, a = 0.5, fx = x, fy = y, norm = 0;
+    for (let i = 0; i < oct; i++) {
+      s += a * this.n(fx, fy);
+      norm += a;
+      fx *= lac; fy *= lac; a *= gain;
     }
-    return value / total;
+    return s / norm;
   }
-  ridged(x, z, octaves = 5, gain = 0.55) {
-    let value = 0, amp = 0.5, total = 0;
-    for (let i = 0; i < octaves; i++) {
-      value += (1 - Math.abs(this.value(x, z) * 2 - 1)) * amp;
-      total += amp;
-      x = x * 2.01 + 9.1;
-      z = z * 2.01 - 15.2;
-      amp *= gain;
+
+  /* Absolute value flips the noise's zero crossings into creases, and
+   * inverting turns them into ridges. This is what gives the cliff and the
+   * valley shoulders their eroded look — plain fbm only ever makes blobs. */
+  ridged(x, y, oct = 5, gain = 0.5, lac = 2.0) {
+    let s = 0, a = 0.5, fx = x, fy = y, norm = 0;
+    for (let i = 0; i < oct; i++) {
+      s += a * (1 - Math.abs(this.n(fx, fy)));
+      norm += a;
+      fx *= lac; fy *= lac; a *= gain;
     }
-    return value / total;
+    return (s / norm) * 2 - 1;
   }
 }
-export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
 export const smoothstep = (a, b, x) => {
-  const t = clamp((x - a) / (b - a), 0, 1);
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
 };
+export const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
+export const lerp = (a, b, t) => a + (b - a) * t;

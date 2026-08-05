@@ -1,133 +1,297 @@
+/* Sky and image-based lighting.
+ *
+ * Single-scattering Rayleigh + Mie, evaluated per pixel on a backside sphere.
+ * A gradient dome would be cheaper, but the sky is not decoration here — it is
+ * the light source. Everything in a jungle that is not in a direct sunbeam is
+ * lit almost entirely by skylight bouncing off the canopy, so the colour and
+ * the vertical falloff of the dome decide what the shaded 95% of the frame
+ * looks like. A two-colour lerp gets that flatly wrong; real skylight is much
+ * bluer overhead than at the horizon and the gradient is not linear.
+ *
+ * The same shader is rendered into a cube and prefiltered into an environment
+ * map, so the sky lighting the scene and the sky you can see through the leaves
+ * are the same function of the sun direction.
+ */
 import * as THREE from 'three';
+import { SSTEP } from '../gfx/glsl.js';
 
-const vertexShader = `
-varying vec3 vDirection;
-void main() {
-  vDirection = normalize(position);
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  gl_Position.z = gl_Position.w;
+const VERT = /* glsl */ `
+varying vec3 vDir;
+void main(){
+  vDir = (modelMatrix * vec4(position, 1.0)).xyz - cameraPosition;
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  // Force the dome to the far plane so nothing can ever poke through it.
+  gl_Position = (projectionMatrix * mv).xyww;
 }
 `;
-const fragmentShader = `
-precision highp float;
-varying vec3 vDirection;
-uniform vec3 uSunDirection;
-uniform float uTurbidity;
-uniform float uCameraHeight;
-const float PI = 3.14159265359;
-const vec3 BETA_R = vec3(2.8e-3, 1.8e-2, 2.2e-2);
-const float BETA_M = 0.0021;
-float rayleighPhase(float mu) { return 3.0 / (16.0 * PI) * (1.0 + mu * mu); }
-float miePhase(float mu, float g) {
+
+const FRAG = SSTEP + /* glsl */ `
+varying vec3 vDir;
+uniform vec3 uSunDir;
+uniform float uTurbidity;    // haze. A humid rainforest morning is 4-8.
+uniform float uExposure;
+uniform vec3 uGroundColor;   // canopy bounce, seen below the horizon
+uniform vec3 uHazeColor;     // the shaded air the low sky is seen through
+
+const float PI = 3.141592653589793;
+
+// Rayleigh scattering coefficients at sea level (m^-1), 680/550/440 nm.
+const vec3 BETA_R = vec3(5.8e-6, 13.5e-6, 33.1e-6);
+const float H_R = 8000.0;    // Rayleigh scale height
+const float H_M = 1200.0;    // Mie scale height
+const float R_EARTH = 6371000.0;
+const float R_ATMOS = 6471000.0;
+
+float rayleighPhase(float c){ return (3.0 / (16.0 * PI)) * (1.0 + c * c); }
+
+// Henyey-Greenstein. g near 0.8 puts most of the Mie energy in a tight forward
+// lobe, which is the bright halo you see around the sun through humid air.
+float miePhase(float c, float g){
   float g2 = g * g;
-  return (1.0 - g2) / (4.0 * PI * pow(1.0 + g2 - 2.0 * g * mu, 1.5));
+  return (1.0 - g2) / (4.0 * PI * pow(1.0 + g2 - 2.0 * g * c, 1.5));
 }
-float hash31(vec3 p) {
-  p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33);
-  return fract((p.x + p.y) * p.z);
+
+// Distance from a point to the top of the atmosphere along a ray.
+float atmosphereDepth(vec3 pos, vec3 dir){
+  float b = dot(pos, dir);
+  float c = dot(pos, pos) - R_ATMOS * R_ATMOS;
+  float d = b * b - c;
+  return d < 0.0 ? 0.0 : -b + sqrt(d);
 }
-float noise3(vec3 p) {
-  vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-  float a = hash31(i), b = hash31(i + vec3(1,0,0));
-  float c = hash31(i + vec3(0,1,0)), d = hash31(i + vec3(1,1,0));
-  float e = hash31(i + vec3(0,0,1)), g = hash31(i + vec3(1,0,1));
-  float h = hash31(i + vec3(0,1,1)), j = hash31(i + vec3(1,1,1));
-  return mix(mix(mix(a,b,f.x),mix(c,d,f.x),f.y),
-    mix(mix(e,g,f.x),mix(h,j,f.x),f.y),f.z);
-}
-float cloud(vec3 p) {
-  float v = 0.0, a = 0.5;
-  for (int i = 0; i < 4; i++) { v += noise3(p) * a; p = p * 2.03 + 11.7; a *= 0.5; }
-  return v;
-}
-void main() {
-  vec3 view = normalize(vDirection), sun = normalize(uSunDirection);
-  float mu = dot(view, sun);
-  float rayLength = mix(18.0, 3.0, clamp(abs(view.y), 0.0, 1.0));
-  vec3 inscatterR = vec3(0.0); float inscatterM = 0.0;
-  float opticalR = 0.0, opticalM = 0.0, previous = 0.0;
-  for (int i = 0; i < 18; i++) {
-    float f = (float(i) + 0.5) / 18.0;
-    float t = f * f * rayLength, segment = t - previous;
-    previous = t;
-    float altitude = max(0.0, uCameraHeight + view.y * t);
-    float densityR = exp(-altitude / 8.0), densityM = exp(-altitude / 1.25);
-    opticalR += densityR * segment; opticalM += densityM * segment;
-    float sunDepth = 1.0 / max(0.08, sun.y + 0.15);
-    vec3 transmittance = exp(-(BETA_R * (opticalR + densityR * sunDepth) +
-      BETA_M * (opticalM + densityM * sunDepth) * uTurbidity));
-    inscatterR += transmittance * densityR * segment;
-    inscatterM += transmittance.r * densityM * segment;
+
+void main(){
+  vec3 dir = normalize(vDir);
+  vec3 sun = normalize(uSunDir);
+
+  // Below the horizon we are looking at the forest floor / canopy, not sky.
+  // Fading rather than clipping keeps the environment map's lower hemisphere
+  // continuous, which matters because that half is doing the bounce lighting.
+  float below = sstep(0.055, -0.13, dir.y);
+
+  vec3 origin = vec3(0.0, R_EARTH + 300.0, 0.0);
+  float rayLen = atmosphereDepth(origin, dir);
+
+  const int STEPS = 20;
+  const int LIGHT_STEPS = 4;
+
+  vec3 sumR = vec3(0.0), sumM = vec3(0.0);
+  float odR = 0.0, odM = 0.0;
+
+  float mieScale = 21e-6 * (uTurbidity * 0.35);
+  vec3 betaM = vec3(mieScale);
+
+  /* Clamping the sample altitude at sea level is not a detail.
+   *
+   * A ray pointing below the horizon passes through the planet, where the
+   * sample altitude goes to about -6e6 m and the density term exp(-h/H)
+   * overflows to +Inf. The optical depth is then Inf, its transmittance
+   * exp(-Inf) is 0, and the accumulation multiplies the two: Inf * 0 = NaN.
+   * That NaN goes
+   * into the lower half of the cube map, the PMREM blur spreads it across
+   * every roughness level, and afterwards *every* PBR surface in the scene
+   * renders pure black no matter what the lights are doing — with no warning
+   * anywhere, because the shader compiled fine.
+   */
+  /* Sample spacing is quadratic, not uniform, and near the horizon that is the
+   * difference between a sky and a banded mess.
+   *
+   * A ray pointing near-level travels several hundred kilometres before it
+   * leaves the atmosphere, but essentially all of the scattering happens in
+   * the first few — density falls off exponentially with a scale height of
+   * 8 km. Spacing the samples evenly along the ray spends nineteen of them in
+   * vacuum and one on the part that matters, and the result was a hard-edged
+   * orange band across the horizon that looked like a bug in the tone mapping.
+   * Warping the sample positions by t^2 puts most of them in the dense air
+   * near the viewer for no extra cost.
+   */
+  float prevT = 0.0;
+  for(int i = 0; i < STEPS; i++){
+    float f = float(i + 1) / float(STEPS);
+    float tEnd = rayLen * f * f;
+    float segment = tEnd - prevT;
+    vec3 p = origin + dir * (prevT + segment * 0.5);
+    prevT = tEnd;
+    float height = max(0.0, length(p) - R_EARTH);
+    float hr = exp(-height / H_R) * segment;
+    float hm = exp(-height / H_M) * segment;
+    odR += hr; odM += hm;
+
+    // Optical depth back toward the sun from this sample.
+    float lightLen = atmosphereDepth(p, sun);
+    float lseg = lightLen / float(LIGHT_STEPS);
+    float lodR = 0.0, lodM = 0.0;
+    for(int j = 0; j < LIGHT_STEPS; j++){
+      vec3 lp = p + sun * (lseg * (float(j) + 0.5));
+      float lh = max(0.0, length(lp) - R_EARTH);
+      lodR += exp(-lh / H_R) * lseg;
+      lodM += exp(-lh / H_M) * lseg;
+    }
+    vec3 tau = BETA_R * (odR + lodR) + betaM * 1.1 * (odM + lodM);
+    vec3 attn = exp(-tau);
+    sumR += attn * hr;
+    sumM += attn * hm;
   }
-  vec3 radiance = inscatterR * BETA_R * rayleighPhase(mu) * 16.0;
-  radiance += inscatterM * BETA_M * miePhase(mu, 0.78) * vec3(1.0, 0.83, 0.65) * 9.0;
-  // Daylight floor from the integrated solar spectrum. This keeps the
-  // analytic sky in a photographic daytime range instead of near-black.
-  float daylight = max(0.0, sun.y);
-  radiance += vec3(0.012, 0.16, 0.34) * (0.55 + 0.9 * max(view.y, 0.0));
-  radiance += vec3(0.18, 0.082, 0.024) * daylight * exp(-max(view.y, 0.0) * 5.0);
-  float disc = smoothstep(0.996, 0.9998, mu);
-  float limb = 1.0 - 0.32 * (1.0 - smoothstep(0.9997, 1.0, mu));
-  radiance += vec3(4.8, 3.2, 1.3) * disc * limb;
-  radiance += vec3(0.42, 0.24, 0.08) * pow(max(mu, 0.0), 48.0);
-  float cloudBand = smoothstep(0.54, 0.72, cloud(view * 2.4 + vec3(0.0, 1.7, 3.1)));
-  cloudBand *= smoothstep(0.1, 0.48, view.y) * 0.32;
-  radiance += vec3(0.19, 0.15, 0.1) * cloudBand;
-  float haze = exp(-max(view.y, -0.05) * max(view.y, -0.05) * 26.0);
-  radiance += vec3(0.46, 0.31, 0.14) * haze * (1.0 + 0.7 * max(0.0, sun.y));
-  gl_FragColor = vec4(max(radiance, vec3(0.0001)), 1.0);
+
+  float c = dot(dir, sun);
+  vec3 col = (sumR * BETA_R * rayleighPhase(c) + sumM * betaM * miePhase(c, 0.78)) * 22.0;
+
+  // Sun disc. Angular radius ~0.0046 rad; smoothstep over a few times that so
+  // it has an edge rather than an aliased dot, and a wide bloom-feeding core.
+  float sunAmt = sstep(0.9997, 0.99995, c);
+  col += vec3(1.0, 0.94, 0.84) * sunAmt * 120.0;
+
+  /* Merge the low sky into the haze.
+   *
+   * The dome is never seen from open ground here — it is seen from under a
+   * canopy, through the same thirty metres of humid shaded air that the
+   * distance fog models. The fog cannot help, because the dome is at infinity
+   * and is drawn unfogged, so any horizontal sightline that found a gap in the
+   * thicket ended on raw un-attenuated sky. At the end of a trail corridor
+   * that is a bright wedge sitting exactly where the vanishing point is, and
+   * the eye reads it as daylight through an exit — which destroys the
+   * enclosure the whole scene depends on. Anything within about fifteen
+   * degrees of level therefore arrives already merged into the haze.
+   */
+  col = mix(col, uHazeColor * 2.0, sstep(0.26, 0.0, dir.y) * 0.94);
+
+  col = mix(col, uGroundColor * (0.35 + 0.65 * max(0.0, sun.y)), below);
+
+  /* Belt and braces. This dome is prefiltered into the environment map, and a
+   * single non-finite texel there blacks out every lit surface in the scene
+   * with no other symptom. A comparison against NaN is always false, so this
+   * catches it where max() would not. */
+  if (!(col.r >= 0.0) || !(col.g >= 0.0) || !(col.b >= 0.0)) col = vec3(0.0);
+
+  gl_FragColor = vec4(col * uExposure, 1.0);
 }
 `;
 
 export class Sky {
-  constructor(renderer, scene) {
-    this.renderer = renderer; this.scene = scene;
-    this.skyScene = new THREE.Scene();
+  constructor(renderer) {
+    this.renderer = renderer;
     this.uniforms = {
-      uSunDirection: { value: new THREE.Vector3() },
-      uTurbidity: { value: 5.2 },
-      uCameraHeight: { value: 0.02 },
+      uSunDir: { value: new THREE.Vector3(0.28, 0.42, -0.86).normalize() },
+      uTurbidity: { value: 5.5 },
+      uExposure: { value: 1.0 },
+      /* What the dome shows below the horizon. Not "the ground" — it is the
+       * haze standing over the canopy, so it wants to be close to the fog
+       * colour. Setting it dark like soil leaves a black band under the
+       * skyline wherever the terrain does not quite reach the horizon. */
+      uGroundColor: { value: new THREE.Color(0x4d5a41) },
+      /* Kept in step with scene.fog by hand. The two have to agree: where a
+       * fogged thicket meets the dome behind it there must be no seam, and a
+       * mismatch there is visible as a horizon line even at low contrast. */
+      uHazeColor: { value: new THREE.Color(0x475538) },
     };
-    this.horizonRadiance = new THREE.Color(0.28, 0.20, 0.11);
     this.material = new THREE.ShaderMaterial({
-      vertexShader, fragmentShader, uniforms: this.uniforms,
-      side: THREE.BackSide, depthWrite: false, toneMapped: false,
+      vertexShader: VERT, fragmentShader: FRAG,
+      uniforms: this.uniforms,
+      side: THREE.BackSide, depthWrite: false, depthTest: true,
+      toneMapped: false,   // the dome carries HDR values; grading happens in post
+      fog: false,
     });
-    this.mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 32), this.material);
-    this.mesh.scale.setScalar(4500); this.mesh.frustumCulled = false; this.mesh.renderOrder = -1000;
-    this.skyScene.add(this.mesh);
-    this.pmrem = new THREE.PMREMGenerator(renderer);
-    this.pmrem.compileCubemapShader();
-    this.cubeTarget = new THREE.WebGLCubeRenderTarget(256, {
-      type: THREE.HalfFloatType, format: THREE.RGBAFormat,
-      generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter,
-    });
-    this.cubeCamera = new THREE.CubeCamera(0.1, 10000, this.cubeTarget);
-    this.setSun(28, 145);
+    this.mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 20), this.material);
+    this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = -1000;
+    this.mesh.scale.setScalar(4000);
+    this.mesh.name = 'sky';
+
+    this._pmrem = new THREE.PMREMGenerator(renderer);
+    this._pmrem.compileEquirectangularShader();
+    this._envRT = null;
   }
+
+  get sunDir() { return this.uniforms.uSunDir.value; }
+
+  /**
+   * Set the sun by elevation/azimuth in degrees.
+   * Elevation around 32-42 is the useful window: high enough that shafts reach
+   * the floor through the canopy, low enough that they are still shafts.
+   */
   setSun(elevationDeg, azimuthDeg) {
-    const e = THREE.MathUtils.degToRad(Math.max(1, elevationDeg));
+    const e = THREE.MathUtils.degToRad(elevationDeg);
     const a = THREE.MathUtils.degToRad(azimuthDeg);
-    this.uniforms.uSunDirection.value.set(Math.cos(e) * Math.sin(a), Math.sin(e), Math.cos(e) * Math.cos(a)).normalize();
-    this.horizonRadiance.setRGB(0.18 + this.sunDirection.y * 0.10, 0.14 + this.sunDirection.y * 0.08, 0.075 + this.sunDirection.y * 0.045);
-    if (this.sunDirection.y <= 0) throw new Error('Sky sun elevation must remain above horizon');
+    this.sunDir.set(Math.cos(e) * Math.sin(a), Math.sin(e), Math.cos(e) * Math.cos(a)).normalize();
     return this;
   }
-  bakeEnvironment() {
-    this.cubeCamera.update(this.renderer, this.skyScene);
-    this.environmentTarget = this.pmrem.fromCubemap(this.cubeTarget.texture);
-    this.scene.environment = this.environmentTarget.texture;
-    return this;
+
+  /**
+   * Prefilter the dome into an environment map and hang it on the scene.
+   *
+   * Expensive enough that it must not run per frame — the sun only moves when
+   * something asks it to, so this is called explicitly after a change rather
+   * than being kept in sync automatically.
+   */
+  bake(scene, size = 256) {
+    const cubeRT = new THREE.WebGLCubeRenderTarget(size, { type: THREE.HalfFloatType });
+    const cam = new THREE.CubeCamera(0.1, 10, cubeRT);
+    const tmp = new THREE.Scene();
+    const domeCopy = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 20), this.material);
+    domeCopy.scale.setScalar(5);
+    domeCopy.frustumCulled = false;
+    tmp.add(domeCopy);
+    cam.update(this.renderer, tmp);
+
+    const prev = this._envRT;
+    this._envRT = this._pmrem.fromCubemap(cubeRT.texture);
+    scene.environment = this._envRT.texture;
+
+    domeCopy.geometry.dispose();
+    cubeRT.dispose();
+    if (prev) prev.dispose();
+    return this._envRT.texture;
   }
-  addVisibleSky() { this.scene.add(this.mesh); return this; }
-  get sunDirection() { return this.uniforms.uSunDirection.value; }
-  radianceDiagnostics() {
-    const y = this.sunDirection.y;
-    return {
-      zenith: [0.05 + y * 0.02, 0.07 + y * 0.02, 0.14 + y * 0.04],
-      horizonAwayFromSun: [0.14 + y * 0.08, 0.08 + y * 0.04, 0.04 + y * 0.015],
-      horizonTowardSun: [0.34 + y * 0.16, 0.16 + y * 0.08, 0.06 + y * 0.03],
-      sunDisc: [4.8 + y * 1.5, 3.2 + y * 0.9, 1.3 + y * 0.4],
-    };
+
+  /**
+   * Colour and intensity for the sun's directional light, derived from the
+   * same scattering as the dome so the key light and the sky cannot disagree.
+   * Reddening near the horizon falls out of the extinction rather than being
+   * hand-keyed.
+   */
+  sunLight() {
+    const y = Math.max(0.02, this.sunDir.y);
+    const airmass = 1.0 / (y + 0.15 * Math.pow(y + 0.02, -1.253));
+    const ext = (beta) => Math.exp(-beta * airmass);
+    const c = new THREE.Color(ext(0.19), ext(0.42), ext(0.95));
+    const max = Math.max(c.r, c.g, c.b) || 1;
+    c.multiplyScalar(1 / max);
+    /* Raised again with the atmosphere system, and this time the increase is
+     * one that shows up in the frame. Every previous attempt to turn the sun
+     * up moved the histogram by literally nothing, for a reason that took a
+     * measurement to find: three storeys of canopy patches in the shadow map
+     * closed the roof completely, so the multiplier was being applied to zero
+     * everywhere below it. With the roof's occlusion now modelled as a
+     * transmittance rather than a shadow (render/canopy.js) there are surfaces
+     * down here in direct sun again, and the ratio between a sunfleck and the
+     * shade around it is the single strongest depth cue the forest floor has.
+     * Under a closed canopy a fleck is on the order of ten times the ambient;
+     * anything less and it reads as a light patch of ground.
+     *
+     * Trimmed back by a sixth afterwards, for the opposite failure. Ten times
+     * the ambient is the right ratio for a fleck the size of a hand; the light
+     * pool under a genuine canopy opening is tens of square metres of the same
+     * value, and at this intensity ACES was rolling all of it to a flat cream
+     * with no litter texture left in it. The tone curve desaturating toward
+     * white is the signature of a value pushed past the shoulder, and once a
+     * frame contains a patch that has gone there, everything else reads as
+     * underexposed by comparison. The floor of the range is being lifted in
+     * canopy.js at the same time; this is the other end of the same edit.
+     *
+     * The exponent is under one rather than the linear falloff a horizontal
+     * surface's irradiance would follow, and this light is why. It stands in
+     * for the direct beam and for the bright band of sky around a low sun
+     * together, and the second of those does not fade at the same rate as the
+     * first. On a straight sine a fourteen-degree sun came out at a third of
+     * midday, which — multiplied by a canopy that a shallow ray has four
+     * times as much of to cross — left the dawn frames with no directional
+     * light in them at all and reading as overcast. */
+    return { color: c, intensity: THREE.MathUtils.clamp(11.5 * Math.pow(y, 0.8), 0, 7.6) };
+  }
+
+  dispose() {
+    this.mesh.geometry.dispose();
+    this.material.dispose();
+    this._pmrem.dispose();
+    if (this._envRT) this._envRT.dispose();
   }
 }

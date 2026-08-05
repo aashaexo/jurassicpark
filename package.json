@@ -1,19 +1,16 @@
 {
-  "name": "jurassic-park-procedural",
+  "name": "jungle-trail",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Procedural photorealistic Jurassic Park valley scene in Three.js",
+  "description": "First-person jungle trail. Procedural everything, zero external assets.",
   "scripts": {
     "serve": "node tools/serve.mjs",
     "shoot": "node tools/shoot.mjs",
-    "perf": "node tools/perf.mjs",
     "dump": "node tools/dump.mjs",
-    "isolate": "node tools/isolate.mjs",
-    "species": "node tools/species.mjs",
-    "leaf-debug": "node tools/leaf-debug.mjs"
+    "isolate": "node tools/isolate.mjs"
   },
-  "dependencies": {
+  "devDependencies": {
     "playwright": "^1.62.0"
   }
 }

@@ -1,38 +1,31 @@
-import { chromium } from 'playwright';
-import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { run } from './harness.mjs';
+import { finish } from './tame.mjs';
 
-const server = spawn(process.execPath, ['tools/serve.mjs'], { stdio: 'ignore' });
-try {
-  await new Promise((resolve) => setTimeout(resolve, 900));
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
-  await page.goto('http://localhost:8099/?tier=high', { waitUntil: 'load' });
-  await page.waitForFunction(() => window.__sceneReady === true, null, { timeout: 120000 });
-  const dump = await page.evaluate(() => {
-    const validation = window.__game.validateTerrain();
-    const meshes = [];
-    window.__game.scene.traverse((object) => {
-      if (!object.isMesh) return;
-      object.updateMatrixWorld(true);
-      const sphere = object.boundingSphere
-        ? object.boundingSphere.clone().applyMatrix4(object.matrixWorld)
-        : (object.geometry.computeBoundingSphere(), object.geometry.boundingSphere.clone().applyMatrix4(object.matrixWorld));
-      meshes.push({
-        name: object.name || object.type,
-        center: sphere.center.toArray().map((v) => +v.toFixed(2)),
-        radius: +sphere.radius.toFixed(2),
-        visible: object.visible,
-        material: object.material?.type,
-      });
-    });
-    return { validation, meshes, camera: window.__game.camera.position.toArray() };
+const out = path.resolve('media/jungle-trail-dump.json');
+await run({ width: 800, height: 450, hash: 'manual&tier=high' }, async ({ page, errs, gl }) => {
+  const report = await page.evaluate(() => {
+    const g = window.__game;
+    g.scene.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(g.terrain.group);
+    const size = box.getSize(new THREE.Vector3());
+    return {
+      terrain: {
+        min: box.min.toArray().map(v => +v.toFixed(3)),
+        max: box.max.toArray().map(v => +v.toFixed(3)),
+        size: size.toArray().map(v => +v.toFixed(3)),
+      },
+      vegetation: g.veg.stats(),
+      render: g.info(),
+    };
   });
-  console.log(JSON.stringify(dump, null, 2));
-  if (!dump.validation.ok) {
-    console.error(dump.validation.failures.join('\n'));
-    process.exitCode = 1;
-  }
-  await browser.close();
-} finally {
-  server.kill();
-}
+  const valid = report.terrain.size[0] > 170 && report.terrain.size[0] < 190 &&
+    report.terrain.size[2] > 480 && report.terrain.size[2] < 505;
+  report.ok = valid && errs.length === 0;
+  report.gl = gl;
+  fs.writeFileSync(out, JSON.stringify(report, null, 2));
+  console.log(JSON.stringify(report, null, 2));
+  if (!valid) throw new Error('terrain bounds outside expected jungle-trail dimensions');
+});
+finish(process.exitCode || 0);

@@ -1,0 +1,15 @@
+This project is derived from and includes substantial source code from:
+
+https://github.com/StarKnightt/jungle-trail
+
+The reused jungle-trail source is available under the MIT License in
+LICENSE-jungle-trail, retaining its original copyright notice:
+
+Copyright (c) 2026 Prasenjit (StarKnightt)
+
+Reused systems include the procedural terrain, trail/path generation,
+procedural vegetation and leaf atlas, ruins and stone rendering, water and
+brook systems, player controller and body, atmospheric sky and post-processing,
+canopy-lighting model, audio synthesis, and associated capture/debug tooling.
+
+Jurassic Park-specific additions and modifications are covered by LICENSE.

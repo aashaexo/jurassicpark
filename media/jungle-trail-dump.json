@@ -1,0 +1,87 @@
+{
+  "terrain": {
+    "min": [
+      -84,
+      -4.077,
+      -452
+    ],
+    "max": [
+      96,
+      44.35,
+      40
+    ],
+    "size": [
+      180,
+      48.428,
+      492
+    ]
+  },
+  "vegetation": {
+    "meshes": 2575,
+    "instances": 131434,
+    "tris": 61698544
+  },
+  "render": {
+    "calls": 1,
+    "triangles": 2,
+    "geometries": 12,
+    "textures": 30,
+    "programs": 4,
+    "water": {
+      "spray": 4900,
+      "impact": [
+        1,
+        1.64,
+        -386.44
+      ],
+      "lip": [
+        1,
+        19.64,
+        -390.9
+      ],
+      "fallSeconds": 1.65,
+      "drop": 18,
+      "mirror": "idle"
+    },
+    "veg": {
+      "meshes": 2575,
+      "instances": 131434,
+      "tris": 61698544
+    },
+    "body": {
+      "meshes": 11,
+      "firstPersonDraws": 5,
+      "shadowDraws": 6,
+      "triangles": 7488,
+      "firstPersonTriangles": 3144,
+      "shadowTriangles": 4344,
+      "textures": 3,
+      "bones": 22,
+      "quality": "high"
+    },
+    "collision": {
+      "colliders": 4698,
+      "cells": 2883,
+      "byKind": {
+        "stone": 421,
+        "tree": 657,
+        "buttress": 2467,
+        "palm": 967,
+        "log": 186
+      },
+      "queries": 0,
+      "averageCandidates": 0,
+      "maxCandidates": 0,
+      "averageTests": 0,
+      "maxTests": 0,
+      "averageMs": 0,
+      "maxMs": 0,
+      "contacts": 0
+    }
+  },
+  "ok": true,
+  "gl": {
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "vendor": "Google Inc. (Google)"
+  }
+}
