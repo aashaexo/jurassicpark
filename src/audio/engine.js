@@ -570,6 +570,27 @@ export class Ambience {
     this._foot = 0;
   }
 
+  triggerDinoRumble(pos, strength = 1) {
+    if (!this.ready || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    const filter = this.ctx.createBiquadFilter();
+    const pan = this.ctx.createStereoPanner();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(38 + this._rng() * 8, now);
+    osc.frequency.exponentialRampToValueAtTime(22, now + 1.8);
+    filter.type = 'lowpass';
+    filter.frequency.value = 140;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(this._lv('falls') * 0.12 * strength, now + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.8);
+    pan.pan.value = clamp((pos.x - this.camera.position.x) / 20, -1, 1);
+    osc.connect(filter).connect(gain).connect(pan).connect(this.master);
+    osc.start(now);
+    osc.stop(now + 1.9);
+  }
+
   setPaused(paused) {
     if (!this.ready) return;
     if (paused && this.ctx.state === 'running' && this.ctx.suspend) this.ctx.suspend();

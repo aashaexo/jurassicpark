@@ -23,6 +23,7 @@ import { Canopy, patchCanopyLight } from './render/canopy.js';
 import { Atmosphere } from './render/atmosphere.js';
 import { Ambience } from './audio/engine.js';
 import { DebugOverlay } from './debug.js';
+import { DinosaurSystem } from './world/creatures.js';
 
 /* Quality tiers.
  *
@@ -108,6 +109,10 @@ class Game {
   _initScene() {
     const scene = new THREE.Scene();
     this.scene = scene;
+    this.dinoName = new URLSearchParams(location.search).get('dino') ||
+      new URLSearchParams(location.hash.slice(1)).get('dino');
+    this.dinoDebug = new URLSearchParams(location.search).get('debug') ||
+      new URLSearchParams(location.hash.slice(1)).get('debug');
 
     this.camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.08, 900);
 
@@ -271,6 +276,28 @@ class Game {
                            { tier: this.tier });
     scene.add(this.water.root);
 
+    this.dinosaurs = new DinosaurSystem(this.renderer, this.terrain, {
+      turntable: this.dinoName,
+      debugNormals: this.dinoDebug === 'normal',
+    });
+    this.creatures = this.dinosaurs;
+    scene.add(this.dinosaurs.root);
+    if (this.dinoName) {
+      this.terrain.group.visible = false;
+      this.veg.root.visible = false;
+      this.ruins.root.visible = false;
+      this.water.root.visible = false;
+      scene.fog = null;
+      const ground = new THREE.Mesh(
+        new THREE.PlaneGeometry(40, 40),
+        new THREE.MeshStandardMaterial({ color: 0x918a73, roughness: 1 }),
+      );
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = true;
+      ground.name = 'dinosaur-turntable-ground';
+      scene.add(ground);
+    }
+
     this.sky.bake(scene);
     /* The environment map is the open sky, and under a roof of leaves only a
      * fraction of it is visible from any surface. Handing surfaces the full
@@ -285,6 +312,7 @@ class Game {
                              this.collision).attach(this.canvas);
     this.body = new PlayerBody(this.renderer, this.walker, { tier: this.tier });
     scene.add(this.body.root);
+    if (this.dinoName) this.body.root.visible = false;
     /* First-person limbs and the complete external body use separate layers.
      * This camera sees only the camera-aligned representation; PlayerBody
      * exposes the complete one to the depth traversal just long enough to cast
@@ -310,7 +338,8 @@ class Game {
      * that the shaft does not touch, and that reads instantly. */
     for (const m of [this.terrainMat, this.veg.leafMat, this.veg.woodMat,
                      this.ruins.material, ...this.water.materials,
-                     ...this.body.materials]) {
+                     ...this.body.materials, ...this.dinosaurs.creatures.map(c => c.material)]) {
+      if (m.userData && (m.userData.debugNormals || m.userData.skipCanopy)) continue;
       patchCanopyLight(m, this.canopy);
     }
 
@@ -338,6 +367,7 @@ class Game {
      * in front of you is. */
     this.ambience.setWaterfallPosition(IMPACT, LIP);
     this.atmos.setFallsPlume(IMPACT);
+    this.dinosaurs.audio = this.ambience;
   }
 
   _configureShadow() {
@@ -429,6 +459,7 @@ class Game {
     this.camera.updateMatrixWorld();
     this.camera.matrixWorldInverse.copy(this.camera.matrixWorld).invert();
     this.veg.update(dt, this.camera, this.sky.sunDir, this.sun.color, this.hemi.color);
+    this.dinosaurs.update(dt);
     this.ruins.update(dt, this.camera);
     this.water.update(dt, this.camera, this.sky.sunDir, this.sun.color,
                       this.hemi.color, this.sun.intensity);
@@ -587,6 +618,7 @@ class Game {
       programs: i.programs ? i.programs.length : 0,
       water: this.water ? this.water.stats() : null,
       veg: this.veg ? this.veg.stats() : null,
+      dinosaurs: this.dinosaurs ? this.dinosaurs.stats() : null,
       body: this.body ? this.body.stats() : null,
       collision: this.collision ? this.collision.stats() : null,
     };

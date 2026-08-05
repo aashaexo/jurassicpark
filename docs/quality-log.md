@@ -242,4 +242,253 @@ diagnostic rather than accepted photographic assets:
 The latest deterministic beauty capture reports 37,430 vegetation instances,
 1,275 tile buckets, 785–943 render calls, and 1.45–1.67M triangles. The
 software-rendered headless performance sample is approximately 0.55 FPS, so
-bucket culling and reduced bucket count remain follow-up work.
+ bucket culling and reduced bucket count remain follow-up work.
+
+## Brachiosaurus procedural creature slice
+
+Added the first Jurassic Park creature slice:
+
+- shared named-bone `CreatureRig` in `src/world/creatures.js`;
+- procedural Brachiosaurus silhouette with torso, hips, five neck segments,
+  five tail segments, four articulated legs, feet, head, muzzle, eyes and
+  nostrils;
+- deterministic breathing, browsing head motion, tail counter-sway and
+  quadruped lateral-sequence leg motion;
+- terrain grounding for world specimens;
+- procedural mottled skin `DataTexture` with rough PBR material;
+- deterministic dino turntable and walking-loop capture scripts;
+- procedural low-frequency rumble hook in the existing audio engine;
+- three Brachiosaurus individuals placed near the late-trail clearing.
+
+Captured:
+
+```text
+shots/dinosaurs/brachiosaurus/turntable.png
+shots/dinosaurs/brachiosaurus/walk-00.png ... walk-07.png
+shots/dinosaurs/brachiosaurus/report.json
+shots/dinosaurs/in-world-brachiosaurus.png
+```
+
+Honest reads:
+
+- `turntable.png` — the long rising neck, small head, deep torso, four massive
+  legs and counterbalancing tail clearly read as a Brachiosaurus silhouette;
+  the procedural skin is mottled and the proportions are film-readable, but
+  the surface still lacks fine scale relief and the model remains visibly
+  stylized at close range.
+- `walk-00.png` through `walk-07.png` — breathing, head scanning, tail sway and
+  alternating leg phases are visible across the sequence; this is a readable
+  ponderous walk prototype, not yet a finished film-quality weight solve because
+  the feet are not yet full IK targets.
+- `in-world-brachiosaurus.png` — the herd is integrated into the vegetation and
+  shadow pipeline, but the animals blend into the dark understory at this
+  camera angle and the clearing sightline needs a dedicated reveal composition
+  before the herd reads as the money shot.
+
+Creature-only statistics:
+
+```text
+meshes:    26
+triangles: 12,992
+instances: 1
+```
+
+The integrated smoke capture at the clearing stop reported 366 scene calls and
+approximately 3.78 million visible triangles under SwiftShader. Browser errors
+and warnings were empty.
+
+## Brachiosaurus anatomy pass
+
+Reworked the hero animal from rigid capped parts into a continuous lofted,
+skinned body:
+
+- one stitched tail-to-shoulder-to-neck body surface;
+- smooth cross-section width/height changes through the barrel, shoulder,
+  hips, tail and neck;
+- separate continuous lofted limb tubes with broad columnar profiles,
+  joint bulges and wider shoulder/hip entries;
+- forelimbs longer than hindlimbs to create the characteristic sloping back;
+- gentle S-curve neck and thick, elevated tapering tail;
+- procedural mottling, counter-shading and a normal detail texture;
+- clean turntable ground with the player body and scene fog removed.
+
+The new turntable and walk captures were regenerated after the loft rewrite.
+The continuous mesh removes the old visible cylinder seams, but the current
+close-up still needs another art pass on the head silhouette, joint folds and
+true foot-target IK before this can be called final.
+
+## Brachiosaurus density and limb pass
+
+The loft resolution was raised for the hero budget:
+
+```text
+body: 180 spine sections × 64 radial segments
+head: 40 sections × 36 radial segments
+limbs: 24 sections × 32 radial segments
+turntable animal: 41,448 triangles
+```
+
+The body and limbs now have closed end caps, broad fleshy foot pads and three
+short blunt toes per foot. Shoulder/hip blend masses cover the limb junctions,
+and the tail profile is arced higher to remain clear of the ground. The skin
+material now binds both a mottled albedo `DataTexture` and a procedural normal
+`DataTexture`; UVs follow the loft's along/around parameterisation.
+
+Honest capture read:
+
+- `shots/dinosaurs/brachiosaurus/turntable.png` — the higher tessellation
+  removes the previous large planar facets and the body reads as a continuous
+  surface. Closed legs, feet and shoulder masses are now visible. The
+  Brachiosaurus silhouette is substantially stronger, though the head details
+  and joint wrinkles remain simpler than the requested final close-up.
+- `walk-00.png` through `walk-07.png` — the dense legs remain closed through
+  the gait sequence and the feet are now present at ground level. The motion
+  has more mass than the previous version, but the terrain IK is still an
+  approximation rather than a full planted-foot solver.
+- `in-world-brachiosaurus.png` — the herd remains atmospherically integrated;
+  the reveal still needs a brighter, more deliberate clearing composition to
+  separate the full 13 m silhouette from the understory.
+
+The density smoke capture reported 371 scene calls and approximately 3.81M
+visible triangles with no browser or console errors.
+
+## Brachiosaurus implicit-surface pass
+
+The primitive assembly was replaced for the active Brachiosaurus with a
+reusable smooth-union volume polygonizer in `src/world/metaball.js`:
+
+- capsule and ellipsoid volumes define torso, ribcage, shoulder/hip mass,
+  neck, tail, head, jaw, legs, pads and toes;
+- polynomial/exponential-style smooth-min blending merges the volumes;
+- marching-tetrahedra polygonisation produces one welded closed surface;
+- the resulting mesh is bound to the procedural skeleton with nearest-three
+  distance-based skin weights;
+- triplanar shader sampling uses the bound procedural skin map, avoiding
+  unwrap seams;
+- the active hero mesh uses a 0.16 m polygonisation spacing and reports
+  70,650 triangles.
+
+New deterministic views:
+
+```text
+shots/dinosaurs/brachiosaurus/side.png
+shots/dinosaurs/brachiosaurus/three-quarter-front.png
+shots/dinosaurs/brachiosaurus/low-hero.png
+```
+
+Honest reads:
+
+- `side.png` — the torso is now a single smooth merged volume rather than a
+  sheet assembled from sections; the continuous tail, neck and leg junctions
+  hold together. The silhouette is substantially more organic, but the
+  head anatomy and feet still need a further realism pass.
+- `three-quarter-front.png` — the shoulder and chest volume read more broadly
+  and the surface no longer shows the old primitive seams. The near-side leg
+  still dominates the view, so the gait/foot solve needs additional tuning.
+- `low-hero.png` — the elevated neck and torso mass read at a cinematic angle,
+  with a much more convincing continuous underside. It is not yet a finished
+  film-quality Brachiosaurus because wrinkles, scale relief and detailed foot
+  anatomy remain limited.
+- `walk-00.png` through `walk-07.png` — the single surface stays closed during
+  animation and the limbs remain connected. The current solver is still
+  approximate rather than a complete planted-foot IK solution.
+- `in-world-brachiosaurus.png` — the fog and vegetation integration remains
+  strong, but the clearing reveal still requires a brighter sightline and
+  deliberate vegetation thinning.
+
+The implicit turntable mesh reports 70,650 triangles, one skinned mesh and no
+browser errors. The in-world smoke capture reported 348 scene calls and
+approximately 3.91M visible triangles.
+
+## Brachiosaurus polygoniser winding fix
+
+The marching-tetrahedra output had inconsistent triangle winding, which caused
+the implicit surface to render as alternating black/white triangular confetti.
+Each generated triangle is now oriented against the analytic SDF gradient at
+its centroid before welding. The material remains explicitly `THREE.FrontSide`;
+`DoubleSide` was not used to mask the issue.
+
+Added the diagnostic mode:
+
+```text
+?dino=brachiosaurus&debug=normal
+```
+
+Capture:
+
+```text
+shots/dinosaurs/brachiosaurus/normal-debug.png
+```
+
+Honest reads:
+
+- `normal-debug.png` — the surface normals now form continuous object-space
+  color gradients rather than alternating black/white facets. The previous
+  winding artifact is gone.
+- `side.png` — the surface shading is coherent across the torso, neck and
+  limbs; the triangular confetti is no longer present.
+- `three-quarter-front.png` — the merged shoulder/chest volume has continuous
+  lighting with no inverted patches.
+- `low-hero.png` — the underside and neck retain coherent shading from the
+  low angle; remaining limitations are anatomy and skin-detail quality, not
+  triangle winding.
+
+The dead `_buildBrachiosaurus()` loft implementation was removed from
+`src/world/creatures.js`; the implicit builder is now the only active
+Brachiosaurus construction path.
+
+## Brachiosaurus analytic-normal pass
+
+The remaining triangular facet pattern was caused by the polygon mesh carrying
+zero/noisy tessellation normals into lighting and triplanar blending. The
+polygonizer now writes a central-difference SDF gradient as the normal at every
+welded vertex instead of calling `computeVertexNormals()`. A fallback nearest
+volume direction handles the mathematically-flat gradient case.
+
+The material's triplanar projection now uses the smooth normal pipeline and the
+high-frequency procedural normal map was removed. The skin map remains bound
+and is sampled through world-space triplanar coordinates. The normal diagnostic
+is a vertex-color view of the analytic normal attribute, which avoids lighting
+confounding the diagnostic.
+
+Capture reads:
+
+- `normal-debug.png` — broad red/green/blue gradients cover the surface with no
+  triangular mosaic; the analytic normal array contains 121,962 finite values,
+  with a range of approximately `-1..1`.
+- `side.png` — the former light/dark triangular facets are gone; the torso and
+  neck now read as continuous shaded volume with the triplanar skin pattern
+  visible at low contrast.
+- `low-hero.png` — the underside remains smoothly shaded from the low angle,
+  without the previous shard-like normal breaks.
+
+The refreshed captures reported 70,650 creature triangles and no browser or
+console errors. `npm run shoot -- analytic-normal-smoke --tier high --w 640
+--h 360 --t 0.84` reported 348 scene calls and approximately 3.91M visible
+triangles.
+
+## Dinosaur capture material-mode isolation
+
+The turntable harness was allowing the normal-debug invocation to overwrite
+beauty captures and relied on mutable global debug state. The dinosaur debug
+mode is now an explicit `DinosaurSystem`/`CreatureRig` constructor value,
+exposed as `window.__game.creatures.debugNormals`.
+
+Each capture asserts the expected mode before rendering. Beauty and debug
+captures use separate browser runs and separate reports:
+
+```text
+shots/dinosaurs/brachiosaurus/report.json
+shots/dinosaurs/brachiosaurus/normal-report.json
+```
+
+The refreshed reports contain:
+
+```text
+report.json         debugNormals: false
+normal-report.json  debugNormals: true
+```
+
+The beauty images show brown/green mottled skin under scene lighting, while
+`normal-debug.png` shows pastel RGB normal colors. The images are no longer
+identical and the beauty material does not contain the debug normal output.
