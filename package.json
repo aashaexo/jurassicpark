@@ -1,0 +1,14 @@
+{
+  "name": "jurassic-park-procedural",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Procedural photorealistic Jurassic Park valley scene in Three.js",
+  "scripts": {
+    "serve": "node tools/serve.mjs",
+    "shoot": "node tools/shoot.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.62.0"
+  }
+}
