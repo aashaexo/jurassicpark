@@ -264,12 +264,13 @@ export class CreatureRig {
       volumes.push(C([0, 3.00, 5.00], [0, 2.80, 6.50], 0.42, 0.25, 0.20));
       volumes.push(C([0, 2.80, 6.50], [0, 2.60, 7.80], 0.25, 0.18, 0.12));
       for (const x of [-1.3, 1.3]) {
-        volumes.push(E([x * 0.58, 3.00, 0.90], [0.45, 0.80, 0.70], 0.40));
-        volumes.push(C([x * 0.62, 2.40, 1.00], [x * 0.62, 1.35, 0.35], 0.32, 0.22, 0.22));
-        volumes.push(C([x * 0.62, 1.35, 0.35], [x * 0.62, 0.42, 0.00], 0.22, 0.18, 0.16));
+        const side = x < 0 ? -1 : 1;
+        volumes.push(E([side * 0.78, 2.85, 0.85], [0.55, 0.95, 0.85], 0.30));
+        volumes.push(C([side * 0.82, 2.20, 0.95], [side * 0.82, 1.25, 0.30], 0.46, 0.30, 0.20));
+        volumes.push(C([side * 0.82, 1.25, 0.30], [side * 0.82, 0.40, 0.00], 0.30, 0.24, 0.16));
         for (const toe of [-1, 0, 1]) {
-          volumes.push(C([x * 0.62 + toe * 0.20, 0.18, 0.00],
-            [x * 0.62 + toe * 0.28, 0.14, -0.55], 0.18, 0.12, 0.10));
+          volumes.push(C([side * 0.82 + toe * 0.34, 0.20, 0.00],
+            [side * 0.82 + toe * 0.34, 0.16, -0.60], 0.20, 0.13, 0.12));
         }
       }
       for (const x of [-0.55, 0.55]) {
@@ -411,6 +412,14 @@ export class CreatureRig {
   update(dt, { walk = false } = {}) {
     this.phase += dt * (walk ? 1.15 : 0.38);
     const p = this.phase;
+    if (this.species === 'gallimimus' && this.terrain) {
+      this.group.position.x += Math.sin(p * 0.18 + this.seed) * dt * 0.7;
+      this.group.position.z += Math.cos(p * 0.16 + this.seed * 0.7) * dt * 0.7;
+      this.group.rotation.y = Math.sin(p * 0.12 + this.seed) * 0.35;
+    }
+    if (this.species === 'dilophosaurus' && this.bones.head) {
+      this.bones.head.rotation.x = Math.sin(p * 0.45) * 0.025;
+    }
     const stride = walk ? 0.34 : 0.045;
     const loaded = Math.sin(p * 1.15);
     this.bones.root.rotation.z = loaded * 0.012;
@@ -501,6 +510,19 @@ export class DinosaurSystem {
         this.root.add(dino.group);
         this.creatures.push(dino);
       });
+      const add = (species, x, z, seed, scale = 1) => {
+        const dino = new CreatureRig(species, { seed, scale, terrain });
+        dino.group.position.set(x, terrain.height(x, z), z);
+        this.root.add(dino.group);
+        this.creatures.push(dino);
+      };
+      add('triceratops', -8, -296, 11, 1);
+      for (let i = 0; i < 12; i++) {
+        const a = i / 12 * Math.PI * 2;
+        add('gallimimus', 42 + Math.cos(a) * 10, -300 + Math.sin(a) * 8, 20 + i, 0.72);
+      }
+      add('dilophosaurus', 13, -286, 41, 0.7);
+      add('trex', 70, -360, 51, 1);
     }
   }
 

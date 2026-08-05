@@ -1,0 +1,42 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { run, capture } from './harness.mjs';
+import { finish } from './tame.mjs';
+
+const out = path.resolve('shots/final');
+fs.mkdirSync(out, { recursive: true });
+const shots = [
+  ['gate-approach.png', [7, -268], [7, -304]],
+  ['brachiosaurus-reveal.png', [-10, -320], [-20, -326]],
+  ['fence-line.png', [22, -300], [30, -300]],
+  ['jeep-road.png', [7, -302], [7, -306]],
+  ['triceratops-trail.png', [-8, -286], [-8, -296]],
+  ['gallimimus-flock.png', [34, -292], [42, -300]],
+  ['dilophosaurus-undergrowth.png', [10, -280], [13, -286]],
+  ['trex-distant.png', [52, -340], [70, -360]],
+  ['valley-establishing.png', [0, -250], [0, -330]],
+];
+for (const [name] of shots) fs.rmSync(path.join(out, name), { force: true });
+const start = Date.now();
+await run({ width: 1600, height: 900, hash: 'manual&tier=high' }, async ({ page }) => {
+  for (const [name, pos, target] of shots) {
+    await page.evaluate(([pos, target]) => {
+      const g = window.__game;
+      const y = g.terrain.height(pos[0], pos[1]) + 1.7;
+      const ty = g.terrain.height(target[0], target[1]) + 2.5;
+      g.camera.position.set(pos[0], y, pos[1]);
+      g.camera.lookAt(target[0], ty, target[1]);
+      g.camera.updateMatrixWorld();
+      g.setPaused(true);
+      g.renderOnce();
+    }, [pos, target]);
+    await capture(page, path.join(out, name));
+  }
+});
+for (const [name] of shots) {
+  const file = path.join(out, name);
+  if (!fs.existsSync(file) || fs.statSync(file).mtimeMs < start) {
+    throw new Error(`stale or missing final capture: ${file}`);
+  }
+}
+finish(process.exitCode || 0);
