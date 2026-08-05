@@ -26,6 +26,7 @@ import { DebugOverlay } from './debug.js';
 import { DinosaurSystem } from './world/creatures.js';
 import { JurassicGate } from './world/jurassic-gate.js';
 import { ElectricFence } from './world/electric-fence.js';
+import { SafariJeep } from './world/jeep.js';
 
 /* Quality tiers.
  *
@@ -119,6 +120,8 @@ class Game {
       new URLSearchParams(location.hash.slice(1)).get('parkStudio') === '1';
     this.fenceStudio = new URLSearchParams(location.search).get('fenceStudio') === '1' ||
       new URLSearchParams(location.hash.slice(1)).get('fenceStudio') === '1';
+    this.jeepStudio = new URLSearchParams(location.search).get('jeepStudio') === '1' ||
+      new URLSearchParams(location.hash.slice(1)).get('jeepStudio') === '1';
     this.dinoDebug = new URLSearchParams(location.search).get('debug') ||
       new URLSearchParams(location.hash.slice(1)).get('debug');
 
@@ -295,23 +298,31 @@ class Game {
     scene.add(this.gate.root);
     this.fence = new ElectricFence(this.terrain);
     scene.add(this.fence.root);
+    this.jeep = new SafariJeep(this.terrain);
+    scene.add(this.jeep.root);
     if (this.parkCapture) this.veg.suppressZone(7, -304, 18);
-    if (this.dinoName || this.parkStudio || this.fenceStudio) {
+    if (this.dinoName || this.parkStudio || this.fenceStudio || this.jeepStudio) {
       this.terrain.group.visible = false;
       this.veg.root.visible = false;
       this.ruins.root.visible = false;
       this.water.root.visible = false;
       this.dinosaurs.root.visible = false;
       this.fence.root.visible = false;
+      this.jeep.root.visible = false;
     }
     if (this.fenceStudio) {
       this.gate.root.visible = false;
       this.fence.root.visible = true;
     }
-    if (this.dinoName || this.parkCapture || this.parkStudio || this.fenceStudio) {
+    if (this.jeepStudio) {
+      this.gate.root.visible = false;
+      this.fence.root.visible = false;
+      this.jeep.root.visible = true;
+    }
+    if (this.dinoName || this.parkCapture || this.parkStudio || this.fenceStudio || this.jeepStudio) {
       scene.fog = null;
     }
-    if (this.dinoName || this.parkStudio || this.fenceStudio) {
+    if (this.dinoName || this.parkStudio || this.fenceStudio || this.jeepStudio) {
       const ground = new THREE.Mesh(
         new THREE.PlaneGeometry(40, 40),
         new THREE.MeshStandardMaterial({ color: 0x918a73, roughness: 1 }),
@@ -355,7 +366,7 @@ class Game {
     this.canopy.setSun(this.sky.sunDir);
     this.atmos = new Atmosphere(this.renderer, this.canopy);
     this.atmos.setTier(this.tier);
-    if (this.dinoName || this.parkCapture || this.parkStudio || this.fenceStudio) {
+    if (this.dinoName || this.parkCapture || this.parkStudio || this.fenceStudio || this.jeepStudio) {
       this.atmos.enabled = false;
       this.atmos.grade.enabled = false;
     }

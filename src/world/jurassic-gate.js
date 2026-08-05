@@ -43,7 +43,7 @@ export class JurassicGate {
     const iron = new THREE.MeshStandardMaterial({
       color: 0x151719, roughness: 0.92, metalness: 0.65,
     });
-    const signMat = new THREE.MeshStandardMaterial({ color: 0xc8b58a, roughness: 0.92 });
+    const signMat = new THREE.MeshStandardMaterial({ color: 0xd2bd91, roughness: 0.92 });
     const letterMat = new THREE.MeshStandardMaterial({
       color: 0x29251f, roughness: 0.88, metalness: 0.05,
     });

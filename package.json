@@ -13,7 +13,8 @@
     "dino-world": "node tools/dino-world.mjs",
     "park-content": "node tools/park-content.mjs",
     "park-studio": "node tools/park-studio.mjs",
-    "fence-studio": "node tools/fence-studio.mjs"
+    "fence-studio": "node tools/fence-studio.mjs",
+    "jeep-studio": "node tools/jeep-studio.mjs"
   },
   "devDependencies": {
     "playwright": "^1.62.0"
