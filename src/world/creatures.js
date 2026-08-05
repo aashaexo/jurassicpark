@@ -76,6 +76,15 @@ function materialFor(seed, debugNormals = false) {
           + texture2D(map, vCreatureWorld.xy * 0.09).rgb * creatureN.z;
         diffuseColor *= vec4(creatureMap * 1.25, 1.0);
       `);
+    if (!material.userData.shaderLogged) {
+      material.userData.shaderLogged = true;
+      material.userData.shaderHasTriplanar = shader.fragmentShader.includes('creatureMap');
+      material.userData.shaderHasWorldNormal = shader.fragmentShader.includes('vCreatureNormalWorld');
+      material.userData.shaderFragmentLength = shader.fragmentShader.length;
+      console.info('[dino-skin] triplanar shader compiled',
+        material.userData.shaderHasWorldNormal,
+        material.userData.shaderHasTriplanar);
+    }
   };
   material.customProgramCacheKey = () => 'dino-skin-triplanar-v4';
   material.side = THREE.FrontSide;

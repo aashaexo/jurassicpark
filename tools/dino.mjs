@@ -87,6 +87,7 @@ await run({
     dino: window.__game.dinosaurs.stats(),
     render: window.__game.info(),
     validation: window.__game.dinosaurs.creatures[0].mesh.geometry.userData.validate(),
+    skinShader: window.__game.dinosaurs.creatures[0].material.userData,
     normal: (() => {
       const a = window.__game.dinosaurs.creatures[0].mesh.geometry.attributes.normal.array;
       let nan = 0, min = Infinity, max = -Infinity;

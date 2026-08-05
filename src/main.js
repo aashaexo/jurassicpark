@@ -112,6 +112,8 @@ class Game {
     this.scene = scene;
     this.dinoName = new URLSearchParams(location.search).get('dino') ||
       new URLSearchParams(location.hash.slice(1)).get('dino');
+    this.parkCapture = new URLSearchParams(location.search).get('park') === '1' ||
+      new URLSearchParams(location.hash.slice(1)).get('park') === '1';
     this.dinoDebug = new URLSearchParams(location.search).get('debug') ||
       new URLSearchParams(location.hash.slice(1)).get('debug');
 
@@ -291,7 +293,11 @@ class Game {
       this.ruins.root.visible = false;
       this.gate.root.visible = false;
       this.water.root.visible = false;
+    }
+    if (this.dinoName || this.parkCapture) {
       scene.fog = null;
+    }
+    if (this.dinoName) {
       const ground = new THREE.Mesh(
         new THREE.PlaneGeometry(40, 40),
         new THREE.MeshStandardMaterial({ color: 0x918a73, roughness: 1 }),
@@ -334,7 +340,7 @@ class Game {
     this.canopy.setSun(this.sky.sunDir);
     this.atmos = new Atmosphere(this.renderer, this.canopy);
     this.atmos.setTier(this.tier);
-    if (this.dinoName) {
+    if (this.dinoName || this.parkCapture) {
       this.atmos.enabled = false;
       this.atmos.grade.bypass = true;
     }
