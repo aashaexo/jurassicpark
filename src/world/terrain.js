@@ -36,6 +36,7 @@ function patchTerrainMaterial(material, textures) {
     const maps = ['grass', 'dirt', 'mud', 'gravel', 'rock'];
     for (const layer of maps) {
       shader.uniforms[`t${layer}`] = { value: textures[layer].map };
+      shader.uniforms[`n${layer}`] = { value: textures[layer].normalMap };
       shader.uniforms[`o${layer}`] = { value: textures[layer].ormMap };
     }
     shader.vertexShader = `varying vec3 vTerrainWorld;\n${shader.vertexShader}`.replace(
@@ -85,6 +86,7 @@ function patchTerrainMaterial(material, textures) {
     shader.fragmentShader = `
       varying vec3 vTerrainWorld;
       uniform sampler2D tgrass,tdirt,tmud,tgravel,trock;
+      uniform sampler2D ngrass,ndirt,nmud,ngravel,nrock;
       uniform sampler2D ograss,odirt,omud,ogravel,orock;
       float noise2(vec2 p) {
         p = fract(p * vec2(123.34, 345.45));
@@ -93,6 +95,12 @@ function patchTerrainMaterial(material, textures) {
       }
       ${shader.fragmentShader}
     `.replace('#include <map_fragment>', layerSampling)
+      .replace('#include <normal_fragment_maps>', `
+        vec3 terrainNormal = texture2D(ngrass, vTerrainWorld.xz * 0.018).xyz * 2.0 - 1.0;
+        terrainNormal += texture2D(ndirt, vTerrainWorld.xz * 0.022 + 0.17).xyz * 0.18;
+        terrainNormal += texture2D(nrock, vTerrainWorld.xz * 0.011 - 0.41).xyz * 0.12;
+        normal = normalize(normal + terrainNormal * 0.11);
+      `)
       .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
         ${ormSampling}
         roughnessFactor = clamp((texture2D(ograss, ormUv).g * a + texture2D(odirt, ormUv).g * b +
