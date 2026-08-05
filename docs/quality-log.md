@@ -549,3 +549,26 @@ The previous herd path polygonised the same hard-coded field three times; the
 cached path performs one polygonisation and two geometry reuses. Capsule and
 ellipsoid distance evaluation now uses scalar math to reduce temporary vector
 allocation during grid sampling.
+
+## Brachiosaurus studio framing pass
+
+The turntable harness now derives a world-space bounding box from the actual
+skinned mesh and computes fit distances from the camera field of view. The
+side pose is perpendicular to the animal's long axis, the front pose is on the
+head side, and the low pose keeps the complete silhouette inside frame.
+Turntable atmosphere volume is disabled while retaining the real sun and
+neutral studio ground, so haze no longer washes the skin to grey.
+
+The regenerated reads are:
+
+- `side.png` — full animal is now framed in a true side profile, including the
+  complete tapering tail and all four feet.
+- `three-quarter-front.png` — the camera is genuinely on the head side rather
+  than behind the animal; the head/neck and shoulder silhouette are judgeable.
+- `low-hero.png` — the complete body remains inside the low-angle frame with
+  readable lit/shadow separation.
+- `normal-debug.png` — smooth pastel normals remain clean after the framing and
+  atmosphere changes.
+
+The turntable remains at 22,864 triangles per animal and the geometry
+validation remains green.

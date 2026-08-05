@@ -330,6 +330,7 @@ class Game {
     this.canopy.setSun(this.sky.sunDir);
     this.atmos = new Atmosphere(this.renderer, this.canopy);
     this.atmos.setTier(this.tier);
+    if (this.dinoName) this.atmos.enabled = false;
     this._syncAtmosphereSize();
 
     /* Every opaque MeshStandardMaterial in the scene, and the list is
