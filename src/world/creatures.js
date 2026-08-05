@@ -61,7 +61,7 @@ function skinNormalTexture(seed = 1) {
   return texture;
 }
 
-function materialFor(seed) {
+function materialFor(seed, debugNormals = false) {
   const material = new THREE.MeshStandardMaterial({
     map: skinTexture(seed),
     normalMap: skinNormalTexture(seed),
@@ -85,7 +85,19 @@ function materialFor(seed) {
         diffuseColor *= vec4(creatureMap * 1.25, 1.0);
       `);
   };
-  material.customProgramCacheKey = () => 'creature-triplanar-v2';
+  if (debugNormals) {
+    material.map = null;
+    material.normalMap = null;
+    material.customProgramCacheKey = () => 'creature-normal-debug-v1';
+    material.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <output_fragment>',
+          'gl_FragColor = vec4(normalize(vNormal) * 0.5 + 0.5, 1.0);');
+    };
+  }
+  material.side = THREE.FrontSide;
+  material.customProgramCacheKey = () =>
+    debugNormals ? 'creature-normal-debug-v1' : 'creature-triplanar-v2';
   return material;
 }
 
@@ -189,7 +201,9 @@ function profilePoint(z, y, width, height) {
 }
 
 export class CreatureRig {
-  constructor(species = 'brachiosaurus', { seed = 1, scale = 1, terrain = null } = {}) {
+  constructor(species = 'brachiosaurus', {
+    seed = 1, scale = 1, terrain = null, debugNormals = false,
+  } = {}) {
     this.species = species;
     this.terrain = terrain;
     this.phase = (seed * 1.618) % TAU;
@@ -197,7 +211,7 @@ export class CreatureRig {
     this.group = new THREE.Group();
     this.group.name = `${species}-${seed}`;
     this.group.scale.setScalar(scale);
-    this.material = materialFor(seed);
+    this.material = materialFor(seed, debugNormals);
     this.bones = {};
     this._buildImplicitBrachiosaurus();
     this._groundY = 0;
@@ -297,172 +311,6 @@ export class CreatureRig {
     this.group.userData.creatureRig = this;
   }
 
-  _buildBrachiosaurus() {
-    const root = bone(this.group, 'root', new THREE.Vector3());
-    this.bones.root = root;
-    const profile = [
-      profilePoint(9.6, 4.55, 0.18, 0.18),
-      profilePoint(8.2, 4.62, 0.32, 0.28),
-      profilePoint(6.8, 4.65, 0.52, 0.42),
-      profilePoint(5.3, 4.62, 0.8, 0.65),
-      profilePoint(3.9, 4.52, 1.2, 1.0),
-      profilePoint(2.4, 4.55, 1.58, 1.3),
-      profilePoint(1.1, 4.8, 1.72, 1.48),
-      profilePoint(-0.3, 5.05, 1.8, 1.62),
-      profilePoint(-1.6, 5.35, 1.82, 1.72),
-      profilePoint(-2.7, 5.72, 1.72, 1.62),
-      profilePoint(-3.5, 6.08, 1.5, 1.4),
-      profilePoint(-4.15, 6.75, 0.98, 0.94),
-      profilePoint(-4.75, 7.6, 0.86, 0.84),
-      profilePoint(-5.3, 8.55, 0.77, 0.75),
-      profilePoint(-5.72, 9.5, 0.68, 0.66),
-      profilePoint(-6.0, 10.45, 0.6, 0.59),
-      profilePoint(-6.18, 11.3, 0.54, 0.52),
-      profilePoint(-6.25, 12.0, 0.48, 0.46),
-    ];
-    const spine = [];
-    for (let i = 0; i < profile.length; i++) {
-      const parent = i ? spine[i - 1] : root;
-      const prev = i ? profile[i - 1].p : new THREE.Vector3();
-      spine.push(bone(parent, `spine-${i}`, profile[i].p.clone().sub(prev)));
-    }
-    this.bones.spine = spine;
-    const dense = resampleProfile(profile, 180);
-    dense.bones = dense.bones.map(i => i + 1);
-    const geom = loftGeometry(dense.points, dense.radii, 64, dense.bones,
-      dense.points.map(() => 0.72), spine.length);
-    const bodyGeometry = geom;
-
-    const headProfile = [
-      { p: new THREE.Vector3(0, 12.0, -6.25), r: new THREE.Vector2(0.48, 0.46) },
-      { p: new THREE.Vector3(0, 12.12, -6.75), r: new THREE.Vector2(0.52, 0.45) },
-      { p: new THREE.Vector3(0, 12.05, -7.3), r: new THREE.Vector2(0.48, 0.38) },
-      { p: new THREE.Vector3(0, 11.92, -7.78), r: new THREE.Vector2(0.35, 0.28) },
-    ];
-    const headBone = bone(spine[spine.length - 1], 'head', new THREE.Vector3(0, 0, -0.3));
-    this.bones.head = headBone;
-    const hd = resampleProfile(headProfile, 40);
-    hd.bones = hd.bones.map(() => spine.length);
-    const hg = loftGeometry(hd.points, hd.radii, 36, hd.bones,
-      hd.points.map(() => 1), spine.length);
-    const headGeometry = hg;
-
-    this.bones.legs = [];
-    const legGeometries = [];
-    const legDefs = [
-      ['front-left', -1, -2.55, 5.85, 3.05, 0.95],
-      ['front-right', 1, -2.55, 5.85, 3.05, 0.95],
-      ['rear-left', -1, 1.2, 4.65, 2.65, 0.76],
-      ['rear-right', 1, 1.2, 4.65, 2.65, 0.76],
-    ];
-    for (const [name, side, z, hipY, kneeY, ankleY] of legDefs) {
-      const hip = new THREE.Vector3(side * 1.22, hipY, z);
-      const knee = new THREE.Vector3(side * 1.15, kneeY, z - 0.16);
-      const ankle = new THREE.Vector3(side * 1.12, ankleY, z - 0.08);
-      const foot = new THREE.Vector3(side * 1.1, 0.28, z - 0.32);
-      const upper = bone(root, `${name}-upper`, hip);
-      const lower = bone(root, `${name}-lower`, knee);
-      const footBone = bone(root, `${name}-foot`, ankle);
-      this.bones.legs.push({ name, side, upper, lower, foot: footBone, hip, knee, ankle, end: foot });
-      const lp = [hip, knee, ankle, foot];
-      const rr = [
-        new THREE.Vector2(0.78, 0.78),
-        new THREE.Vector2(0.7, 0.72),
-        new THREE.Vector2(0.58, 0.55),
-        new THREE.Vector2(0.72, 0.32),
-      ];
-      const legBoneBase = 1 + spine.length + (this.bones.legs.length - 1) * 3;
-      const ld = resampleProfile(lp.map((p, i) => ({ p, r: rr[i] })), 24);
-      ld.bones = ld.bones.map(i => legBoneBase + clamp(i, 0, 2));
-      const lg = loftGeometry(ld.points, ld.radii, 32, ld.bones,
-        ld.points.map(() => 0.92), legBoneBase + 2);
-      legGeometries.push([lg, `${name}-continuous-leg`]);
-    }
-
-    const legBones = this.bones.legs.flatMap(l => [l.upper, l.lower, l.foot]);
-    const skeleton = new THREE.Skeleton([root, ...spine, ...legBones]);
-    root.updateMatrixWorld(true);
-    skeleton.calculateInverses();
-    this.skeleton = skeleton;
-    this.group.add(skinned(bodyGeometry, this.material, skeleton, 'continuous-brachiosaurus-body'));
-    this.group.add(skinned(headGeometry, this.material, skeleton, 'domed-brachiosaurus-head'));
-    for (const [lg, name] of legGeometries) {
-      this.group.add(skinned(lg, this.material, skeleton, name));
-    }
-
-    const detail = new THREE.MeshStandardMaterial({ color: 0x100e0a, roughness: 0.5 });
-    const flesh = new THREE.MeshStandardMaterial({
-      map: this.material.map,
-      normalMap: this.material.normalMap,
-      color: 0xd0b77a,
-      roughness: 0.9,
-    });
-    for (const leg of this.bones.legs) {
-      const pad = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 14), flesh);
-      pad.name = `${leg.name}-fleshy-foot-pad`;
-      pad.position.set(0, -0.42, -0.24);
-      pad.scale.set(0.82, 0.3, 1.05);
-      pad.castShadow = pad.receiveShadow = true;
-      leg.foot.add(pad);
-      for (const side of [-1, 0, 1]) {
-        const toe = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 10), flesh);
-        toe.name = `${leg.name}-blunt-toe`;
-        toe.position.set(side * 0.24, -0.46, -0.86);
-        toe.scale.set(0.2, 0.13, 0.3);
-        toe.castShadow = toe.receiveShadow = true;
-        leg.foot.add(toe);
-      }
-    }
-    for (const [side, z] of [[-1, -2.7], [1, -2.7], [-1, 1.15], [1, 1.15]]) {
-      const mass = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 12), flesh);
-      mass.name = side < 0 ? 'left-shoulder-hip-blend' : 'right-shoulder-hip-blend';
-      mass.position.set(side * 1.12, z < 0 ? 5.55 : 4.6, z);
-      mass.scale.set(0.95, z < 0 ? 1.2 : 1.05, 1.0);
-      mass.castShadow = mass.receiveShadow = true;
-      this.group.add(mass);
-    }
-    const detailHead = this.bones.head;
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 12), flesh);
-    dome.name = 'domed-nasal-arch';
-    dome.position.set(0, 0.33, -0.72);
-    dome.scale.set(0.53, 0.3, 0.72);
-    dome.castShadow = dome.receiveShadow = true;
-    detailHead.add(dome);
-    const jaw = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 10), flesh);
-    jaw.name = 'defined-lower-jaw';
-    jaw.position.set(0, -0.28, -0.83);
-    jaw.scale.set(0.43, 0.18, 0.76);
-    jaw.castShadow = jaw.receiveShadow = true;
-    detailHead.add(jaw);
-    const mouth = new THREE.Mesh(
-      new THREE.BoxGeometry(0.62, 0.035, 0.035),
-      detail,
-    );
-    mouth.name = 'mouth-line';
-    mouth.position.set(0, -0.22, -1.48);
-    detailHead.add(mouth);
-    for (const side of [-1, 1]) {
-      const nostril = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), detail);
-      nostril.name = 'top-nostril';
-      nostril.position.set(side * 0.2, 0.62, -1.18);
-      nostril.scale.set(1.2, 0.5, 0.8);
-      detailHead.add(nostril);
-      const brow = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), flesh);
-      brow.name = 'brow-ridge';
-      brow.position.set(side * 0.42, 0.3, -0.86);
-      brow.scale.set(0.2, 0.12, 0.34);
-      detailHead.add(brow);
-    }
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), detail);
-    eye.position.set(-0.42, 0.28, -1.0);
-    eye.castShadow = true;
-    detailHead.add(eye);
-    const eye2 = eye.clone();
-    eye2.position.x = 0.42;
-    detailHead.add(eye2);
-    this.group.userData.creatureRig = this;
-  }
-
   update(dt, { walk = false } = {}) {
     this.phase += dt * (walk ? 1.15 : 0.38);
     const p = this.phase;
@@ -536,7 +384,9 @@ export class DinosaurSystem {
     this.turntable = Boolean(turntable);
     this.audio = null;
     if (turntable) {
-      const dino = new CreatureRig(turntable, { seed: 7, terrain: null });
+      const dino = new CreatureRig(turntable, {
+        seed: 7, terrain: null, debugNormals: globalThis.__dinoDebug === 'normal',
+      });
       this.root.add(dino.group);
       this.creatures.push(dino);
     } else {

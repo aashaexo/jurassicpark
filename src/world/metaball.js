@@ -86,7 +86,21 @@ export function polygonizeVolumes(volumes, {
     [0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1],
   ];
   const verts = [];
-  const pushTri = (a, b, c) => { verts.push(a, b, c); };
+  const pushTri = (a, b, c) => {
+    const centroid = a.clone().add(b).add(c).multiplyScalar(1 / 3);
+    const eps = 0.01;
+    const grad = new THREE.Vector3(
+      volumeDistance(centroid.clone().setX(centroid.x + eps), volumes) -
+        volumeDistance(centroid.clone().setX(centroid.x - eps), volumes),
+      volumeDistance(centroid.clone().setY(centroid.y + eps), volumes) -
+        volumeDistance(centroid.clone().setY(centroid.y - eps), volumes),
+      volumeDistance(centroid.clone().setZ(centroid.z + eps), volumes) -
+        volumeDistance(centroid.clone().setZ(centroid.z - eps), volumes),
+    ).normalize();
+    const normal = b.clone().sub(a).cross(c.clone().sub(a));
+    if (normal.dot(grad) < 0) verts.push(a, c, b);
+    else verts.push(a, b, c);
+  };
   for (let z = 0; z < nz; z++) for (let y = 0; y < ny; y++) for (let x = 0; x < nx; x++) {
     const cp = corner.map(([dx, dy, dz]) =>
       new THREE.Vector3(min.x + (x + dx) * spacing, min.y + (y + dy) * spacing, min.z + (z + dz) * spacing));

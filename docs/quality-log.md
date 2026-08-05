@@ -399,3 +399,40 @@ Honest reads:
 The implicit turntable mesh reports 70,650 triangles, one skinned mesh and no
 browser errors. The in-world smoke capture reported 348 scene calls and
 approximately 3.91M visible triangles.
+
+## Brachiosaurus polygoniser winding fix
+
+The marching-tetrahedra output had inconsistent triangle winding, which caused
+the implicit surface to render as alternating black/white triangular confetti.
+Each generated triangle is now oriented against the analytic SDF gradient at
+its centroid before welding. The material remains explicitly `THREE.FrontSide`;
+`DoubleSide` was not used to mask the issue.
+
+Added the diagnostic mode:
+
+```text
+?dino=brachiosaurus&debug=normal
+```
+
+Capture:
+
+```text
+shots/dinosaurs/brachiosaurus/normal-debug.png
+```
+
+Honest reads:
+
+- `normal-debug.png` — the surface normals now form continuous object-space
+  color gradients rather than alternating black/white facets. The previous
+  winding artifact is gone.
+- `side.png` — the surface shading is coherent across the torso, neck and
+  limbs; the triangular confetti is no longer present.
+- `three-quarter-front.png` — the merged shoulder/chest volume has continuous
+  lighting with no inverted patches.
+- `low-hero.png` — the underside and neck retain coherent shading from the
+  low angle; remaining limitations are anatomy and skin-detail quality, not
+  triangle winding.
+
+The dead `_buildBrachiosaurus()` loft implementation was removed from
+`src/world/creatures.js`; the implicit builder is now the only active
+Brachiosaurus construction path.

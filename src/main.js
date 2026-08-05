@@ -111,6 +111,8 @@ class Game {
     this.scene = scene;
     this.dinoName = new URLSearchParams(location.search).get('dino') ||
       new URLSearchParams(location.hash.slice(1)).get('dino');
+    globalThis.__dinoDebug = new URLSearchParams(location.search).get('debug') ||
+      new URLSearchParams(location.hash.slice(1)).get('debug');
 
     this.camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.08, 900);
 

@@ -4,6 +4,7 @@ import { run, capture } from './harness.mjs';
 import { finish } from './tame.mjs';
 
 const name = process.argv[2] || 'brachiosaurus';
+const debug = process.argv[3] === 'normal';
 const out = path.resolve('shots/dinosaurs', name);
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });
@@ -11,7 +12,7 @@ fs.mkdirSync(out, { recursive: true });
 await run({
   width: 1280,
   height: 720,
-  hash: `manual&tier=high&dino=${name}`,
+  hash: `manual&tier=high&dino=${name}${debug ? '&debug=normal' : ''}`,
 }, async ({ page, errs }) => {
   const poses = [
     ['side.png', [7, 4.8, 9], [0, 5.1, 0]],
@@ -37,7 +38,7 @@ await run({
     g.setPaused(true);
     g.renderOnce();
   });
-  await capture(page, path.join(out, 'turntable.png'));
+  await capture(page, path.join(out, debug ? 'normal-debug.png' : 'turntable.png'));
 
   const frames = [];
   for (let i = 0; i < 8; i++) {
