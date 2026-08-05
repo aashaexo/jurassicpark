@@ -106,20 +106,14 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
         for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y])
           for (const z of [box.min.z, box.max.z]) aims.push(new T.Vector3(x, y, z));
         if (subjectKind === 'gate') aims.push(center.clone().setX(center.x + 4.8));
-        if (subjectKind === 'gallimimus') {
-          for (const c of g.dinosaurs.creatures.filter(c => c.species === 'gallimimus')) {
-            const p = new T.Vector3();
-            c.group.getWorldPosition(p);
-            aims.push(p);
-          }
-        }
-        const clearRays = aims.filter(aim => {
+        const rayResults = aims.slice(0, 9).map(aim => {
           const ray = new T.Raycaster(candidate, aim.clone().sub(candidate).normalize());
           const hits = ray.intersectObjects(g.scene.children, true);
           const first = hits.find(hit => isVisible(hit.object));
           return Boolean(first && belongsToSubject(first.object));
-        }).length;
-        const obstructionFree = clearRays >= 6;
+        });
+        const clearRays = rayResults.filter(Boolean).length;
+        const obstructionFree = rayResults[0] || clearRays >= 2;
         const score = coverage - (clearRays / aims.length) * 0.5 - (contained ? 0 : 0.25);
         if (!best || score > best.score) best = { candidate, coverage, contained, obstructionFree, clearRays, score };
         if (coverage >= 0.08 && obstructionFree) {
