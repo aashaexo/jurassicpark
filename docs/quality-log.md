@@ -466,3 +466,29 @@ The refreshed captures reported 70,650 creature triangles and no browser or
 console errors. `npm run shoot -- analytic-normal-smoke --tier high --w 640
 --h 360 --t 0.84` reported 348 scene calls and approximately 3.91M visible
 triangles.
+
+## Dinosaur capture material-mode isolation
+
+The turntable harness was allowing the normal-debug invocation to overwrite
+beauty captures and relied on mutable global debug state. The dinosaur debug
+mode is now an explicit `DinosaurSystem`/`CreatureRig` constructor value,
+exposed as `window.__game.creatures.debugNormals`.
+
+Each capture asserts the expected mode before rendering. Beauty and debug
+captures use separate browser runs and separate reports:
+
+```text
+shots/dinosaurs/brachiosaurus/report.json
+shots/dinosaurs/brachiosaurus/normal-report.json
+```
+
+The refreshed reports contain:
+
+```text
+report.json         debugNormals: false
+normal-report.json  debugNormals: true
+```
+
+The beauty images show brown/green mottled skin under scene lighting, while
+`normal-debug.png` shows pastel RGB normal colors. The images are no longer
+identical and the beauty material does not contain the debug normal output.

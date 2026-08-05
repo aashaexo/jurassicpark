@@ -6,7 +6,7 @@ import { finish } from './tame.mjs';
 const name = process.argv[2] || 'brachiosaurus';
 const debug = process.argv[3] === 'normal';
 const out = path.resolve('shots/dinosaurs', name);
-fs.rmSync(out, { recursive: true, force: true });
+if (!debug) fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });
 
 await run({
@@ -14,12 +14,34 @@ await run({
   height: 720,
   hash: `manual&tier=high&dino=${name}${debug ? '&debug=normal' : ''}`,
 }, async ({ page, errs }) => {
+  const assertMode = async (expected) => {
+    await page.evaluate((expected) => {
+      const actual = window.__game?.creatures?.debugNormals;
+      if (actual !== expected) {
+        throw new Error(`dinosaur debug mode mismatch: expected ${expected}, got ${actual}`);
+      }
+    }, expected);
+  };
+  await assertMode(debug);
+  const frames = [];
+  if (debug) {
+    await page.evaluate(() => {
+      const g = window.__game;
+      g.camera.position.set(7, 4.8, 9);
+      g.camera.lookAt(0, 5.1, 0);
+      g.camera.updateMatrixWorld();
+      g.setPaused(true);
+      g.renderOnce();
+    });
+    await capture(page, path.join(out, 'normal-debug.png'));
+  } else {
   const poses = [
     ['side.png', [7, 4.8, 9], [0, 5.1, 0]],
     ['three-quarter-front.png', [-8, 5.4, 8], [0, 5.2, 0]],
     ['low-hero.png', [6, 2.4, 8], [0, 6.5, -1]],
   ];
   for (const [file, position, target] of poses) {
+    await assertMode(false);
     await page.evaluate(([position, target]) => {
       const g = window.__game;
       g.camera.position.set(...position);
@@ -40,8 +62,8 @@ await run({
   });
   await capture(page, path.join(out, debug ? 'normal-debug.png' : 'turntable.png'));
 
-  const frames = [];
   for (let i = 0; i < 8; i++) {
+    await assertMode(false);
     await page.evaluate((i) => {
       const g = window.__game;
       g.setPaused(false);
@@ -56,6 +78,7 @@ await run({
     const file = path.join(out, `walk-${String(i).padStart(2, '0')}.png`);
     await capture(page, file);
     frames.push(path.basename(file));
+  }
   }
   const stats = await page.evaluate(() => ({
     dino: window.__game.dinosaurs.stats(),
@@ -76,8 +99,8 @@ await run({
       };
     })(),
   }));
-  fs.writeFileSync(path.join(out, 'report.json'), JSON.stringify({
-    species: name, frames, stats, errors: errs,
+  fs.writeFileSync(path.join(out, debug ? 'normal-report.json' : 'report.json'), JSON.stringify({
+    species: name, debugNormals: debug, frames, stats, errors: errs,
   }, null, 2));
 });
 finish(process.exitCode || 0);

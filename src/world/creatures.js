@@ -46,6 +46,7 @@ function materialFor(seed, debugNormals = false) {
       side: THREE.FrontSide,
     });
     material.userData.debugNormals = true;
+    material.customProgramCacheKey = () => 'dino-normal-debug-v1';
     return material;
   }
   const material = new THREE.MeshStandardMaterial({
@@ -70,7 +71,7 @@ function materialFor(seed, debugNormals = false) {
         diffuseColor *= vec4(creatureMap * 1.25, 1.0);
       `);
   };
-  material.customProgramCacheKey = () => 'creature-triplanar-v3';
+  material.customProgramCacheKey = () => 'dino-skin-triplanar-v4';
   material.userData.skipCanopy = true;
   material.side = THREE.FrontSide;
   material.customProgramCacheKey = () =>
@@ -351,7 +352,7 @@ export class CreatureRig {
 }
 
 export class DinosaurSystem {
-  constructor(renderer, terrain, { turntable = null } = {}) {
+  constructor(renderer, terrain, { turntable = null, debugNormals = false } = {}) {
     this.renderer = renderer;
     this.terrain = terrain;
     this.root = new THREE.Group();
@@ -359,10 +360,11 @@ export class DinosaurSystem {
     this.creatures = [];
     this.time = 0;
     this.turntable = Boolean(turntable);
+    this.debugNormals = Boolean(debugNormals);
     this.audio = null;
     if (turntable) {
       const dino = new CreatureRig(turntable, {
-        seed: 7, terrain: null, debugNormals: globalThis.__dinoDebug === 'normal',
+        seed: 7, terrain: null, debugNormals: this.debugNormals,
       });
       this.root.add(dino.group);
       this.creatures.push(dino);

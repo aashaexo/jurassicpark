@@ -111,7 +111,7 @@ class Game {
     this.scene = scene;
     this.dinoName = new URLSearchParams(location.search).get('dino') ||
       new URLSearchParams(location.hash.slice(1)).get('dino');
-    globalThis.__dinoDebug = new URLSearchParams(location.search).get('debug') ||
+    this.dinoDebug = new URLSearchParams(location.search).get('debug') ||
       new URLSearchParams(location.hash.slice(1)).get('debug');
 
     this.camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.08, 900);
@@ -278,7 +278,9 @@ class Game {
 
     this.dinosaurs = new DinosaurSystem(this.renderer, this.terrain, {
       turntable: this.dinoName,
+      debugNormals: this.dinoDebug === 'normal',
     });
+    this.creatures = this.dinosaurs;
     scene.add(this.dinosaurs.root);
     if (this.dinoName) {
       this.terrain.group.visible = false;
