@@ -92,6 +92,7 @@ const perf = await page.evaluate(() => new Promise((resolve) => {
 }));
 const result = {
   errors, warnings,
+  tod: new URL('http://localhost' + page.url()).searchParams.get('tod') || 'afternoon',
   consoleErrors: await page.evaluate(() => window.__consoleErrors || []),
   info: await page.evaluate(() => window.__game.info()),
   radiance: await page.evaluate(() => window.__game.sky.radianceDiagnostics()),

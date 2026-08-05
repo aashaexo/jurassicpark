@@ -80,28 +80,5 @@ export function createRoad(terrain, textures = null) {
   road.name = 'dirt-jeep-road';
   group.add(road);
 
-  const rutMaterial = new THREE.MeshStandardMaterial({
-    color: 0x24160e,
-    roughness: 1,
-    polygonOffset: true,
-    polygonOffsetFactor: -1,
-    polygonOffsetUnits: -1,
-  });
-  for (const sideOffset of [-2.25, 2.25]) {
-    const rut = new THREE.Mesh(new THREE.TubeGeometry(
-      new THREE.CatmullRomCurve3(Array.from({ length: 34 }, (_, i) => {
-        const t = i / 33;
-        const p = centerAt(t);
-        const n = centerAt(Math.min(1, t + 0.01)).sub(p).normalize();
-        const side = new THREE.Vector2(-n.y, n.x);
-        const q = p.clone().addScaledVector(side, sideOffset);
-        return new THREE.Vector3(q.x, terrain.heightAt(q.x, q.y) + 0.13, q.y);
-      })), 160, 0.12, 5, false),
-      rutMaterial,
-    );
-    rut.scale.y = 0.18;
-    rut.name = sideOffset < 0 ? 'left-tire-rut' : 'right-tire-rut';
-    group.add(rut);
-  }
   return group;
 }

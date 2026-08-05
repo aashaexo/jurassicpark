@@ -61,14 +61,15 @@ function patchTerrainMaterial(material, textures) {
       float roadMask = smoothstep(14.5, 2.7, abs(vTerrainWorld.x - roadCenter));
       float basinMask = smoothstep(1.0, 0.0, abs(vTerrainWorld.x + 92.0) / 130.0 + abs(vTerrainWorld.z - 76.0) / 100.0);
       float macro = 0.82 + 0.22 * noise2(vTerrainWorld.xz * 0.0027);
-      float wGrass = max(0.0, (1.0 - slope * 2.5) * (1.0 - roadMask) * (1.0 - basinMask));
-      float wDirt = max(0.0, roadMask * 1.5 + slope * 0.25);
-      float wMud = max(0.0, basinMask * 1.1 + roadMask * 0.28);
-      float wGravel = max(0.0, roadMask * 0.42 + slope * 0.22);
-      float wRock = max(0.0, slope * 2.0 - 0.25);
+      float grassFactor = 1.0 - smoothstep(0.62, 0.98, slope);
+      float wGrass = max(0.0, grassFactor * (1.0 - roadMask * 0.95) * (1.0 - basinMask * 0.65));
+      float wDirt = max(0.0, roadMask * 1.35 + slope * 0.08);
+      float wMud = max(0.0, basinMask * 1.25 + roadMask * 0.22);
+      float wGravel = max(0.0, roadMask * 0.16 + smoothstep(0.55, 0.82, slope) * 0.12);
+      float wRock = max(0.0, smoothstep(0.68, 0.94, slope) * 1.6);
       float total = max(wGrass + wDirt + wMud + wGravel + wRock, 0.001);
       vec3 blended = (grass * wGrass + dirt * wDirt + mud * wMud + gravel * wGravel + rock * wRock) / total;
-      diffuseColor.rgb *= blended * macro;
+      diffuseColor.rgb *= min(blended * macro, vec3(0.78));
     `;
     const ormSampling = `
       vec2 ormUv = vTerrainWorld.xz * 0.018;
@@ -96,10 +97,10 @@ function patchTerrainMaterial(material, textures) {
       ${shader.fragmentShader}
     `.replace('#include <map_fragment>', layerSampling)
       .replace('#include <normal_fragment_maps>', `
-        vec3 terrainNormal = texture2D(ngrass, vTerrainWorld.xz * 0.018).xyz * 2.0 - 1.0;
+      vec3 terrainNormal = texture2D(ngrass, vTerrainWorld.xz * 0.018).xyz * 2.0 - 1.0;
         terrainNormal += texture2D(ndirt, vTerrainWorld.xz * 0.022 + 0.17).xyz * 0.18;
         terrainNormal += texture2D(nrock, vTerrainWorld.xz * 0.011 - 0.41).xyz * 0.12;
-        normal = normalize(normal + terrainNormal * 0.11);
+      normal = normalize(normal + terrainNormal * 0.07);
       `)
       .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
         ${ormSampling}
@@ -132,14 +133,28 @@ export function createTerrain(renderer, textures, mode = 'beauty') {
       const geometry = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE, segments, segments);
       geometry.rotateX(-Math.PI / 2);
       const pos = geometry.attributes.position;
+      const normals = new Float32Array(pos.count * 3);
+      const step = CHUNK_SIZE / segments;
       for (let i = 0; i < pos.count; i++) {
         const x = pos.getX(i) + (cx - 2.5) * CHUNK_SIZE;
         const z = pos.getZ(i) + (cz - 2.5) * CHUNK_SIZE;
         pos.setX(i, x);
         pos.setZ(i, z);
         pos.setY(i, heightAt(x, z));
+        const left = heightAt(x - step, z);
+        const right = heightAt(x + step, z);
+        const down = heightAt(x, z - step);
+        const up = heightAt(x, z + step);
+        const normal = new THREE.Vector3(
+          -(right - left) / (2 * step),
+          1,
+          -(up - down) / (2 * step),
+        ).normalize();
+        normals[i * 3] = normal.x;
+        normals[i * 3 + 1] = normal.y;
+        normals[i * 3 + 2] = normal.z;
       }
-      geometry.computeVertexNormals();
+      geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
       geometry.computeBoundingBox();
       geometry.computeBoundingSphere();
       const mesh = new THREE.Mesh(geometry, material);

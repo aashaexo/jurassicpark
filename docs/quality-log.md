@@ -96,3 +96,31 @@ small central island while the sky dome's underside filled the frame.
 - `media/toward-sun.png` — the derived eye-height road view has readable
   sunlit terrain and no detached geometry, but its foreground is still more
   stylized orange dirt than a photographic jungle valley.
+
+## Iteration: jungle palette, continuous normals, and road cleanup
+
+- Terrain normals are now generated from central differences of `heightAt`,
+  so adjacent chunks use identical border normals and no longer form
+  rectangular tonal patches.
+- Grass remains dominant through gentle slopes; dirt and mud are reserved for
+  the road and basin, while rock begins only on steep faces.
+- The orange directional light was replaced by a less saturated warm-white
+  source at lower intensity. The current captures have a more neutral
+  illumination, with greener distant flats.
+- The black tire-rut tube meshes were removed. The road is now a flush dirt
+  ribbon using the baked dirt albedo and normal textures.
+- `media/road-ground.png` — reads as a continuous eye-height dirt road with
+  no black trench tubes; the close foreground is still dark and needs finer
+  rut/ground variation before it matches the reference.
+- `media/hills-sky.png` — the distant hills have greener lit flats and the
+  sky reads blue overhead with warm haze, though the broad horizon remains
+  brighter and less photographic than the reference.
+- `media/valley-overview.png` — chunk tonal seams are substantially reduced
+  and the valley has a green/yellow tropical palette rather than the earlier
+  uniform desert orange; residual warm haze remains in the far ground.
+- `media/toward-sun.png` — the road and terrain are continuous and no longer
+  contain black rut geometry; the frame is still a procedural foundation,
+  not yet a finished jungle photograph.
+
+The `tod` query presets `morning`, `noon`, `afternoon`, and `dusk` all load
+without page errors and keep the sun above the horizon.

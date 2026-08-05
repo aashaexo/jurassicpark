@@ -45,6 +45,15 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(67, 1, 0.1, 2200);
 
 const sky = new Sky(renderer, scene);
+const tod = new URLSearchParams(location.search).get('tod') || 'afternoon';
+const todPresets = {
+  morning: { elevation: 24, azimuth: 105 },
+  noon: { elevation: 62, azimuth: 155 },
+  afternoon: { elevation: 30, azimuth: 145 },
+  dusk: { elevation: 11, azimuth: 220 },
+};
+const selectedTod = todPresets[tod] || todPresets.afternoon;
+sky.setSun(selectedTod.elevation, selectedTod.azimuth);
 scene.background = sky.horizonRadiance.clone();
 scene.fog = new THREE.FogExp2(sky.horizonRadiance, quality.fog);
 if (mode !== 'normal') {
@@ -62,7 +71,7 @@ scene.add(terrain.group);
 if (mode !== 'normal') scene.add(createRoad(terrain, textures));
 if (mode === 'sky') terrain.group.visible = false;
 
-const sun = new THREE.DirectionalLight(0xffc58e, 8.0);
+const sun = new THREE.DirectionalLight(0xffead1, 4.2);
 sun.castShadow = true;
 sun.shadow.mapSize.set(quality.shadows, quality.shadows);
 sun.shadow.camera.left = -150;
@@ -92,7 +101,7 @@ hdr.depthTexture.minFilter = THREE.NearestFilter;
 hdr.depthTexture.magFilter = THREE.NearestFilter;
 const grade = createGrade(renderer, 1, 1, tier);
 grade.material.uniforms.uFogColor.value.copy(sky.horizonRadiance);
-grade.material.uniforms.uFogDensity.value = quality.fog * 2.0;
+grade.material.uniforms.uFogDensity.value = quality.fog * 0.8;
 if (mode === 'normal') {
   grade.material.uniforms.uFogDensity.value = 0;
 }
