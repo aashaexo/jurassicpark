@@ -43,7 +43,7 @@ export class JurassicGate {
     const iron = new THREE.MeshStandardMaterial({
       color: 0x151719, roughness: 0.92, metalness: 0.65,
     });
-    const signMat = new THREE.MeshStandardMaterial({ color: 0x9a886b, roughness: 0.92 });
+    const signMat = new THREE.MeshStandardMaterial({ color: 0xc8b58a, roughness: 0.92 });
     const letterMat = new THREE.MeshStandardMaterial({
       color: 0x29251f, roughness: 0.88, metalness: 0.05,
     });
@@ -133,16 +133,20 @@ export class JurassicGate {
   }
 
   _addLetters(material) {
+    const letters = new THREE.Group();
+    letters.name = 'sign-lettering';
+    letters.rotation.y = Math.PI;
+    this.root.add(letters);
     for (const [line, text] of ['JURASSIC', 'PARK'].entries()) {
       const spacing = line === 0 ? 0.82 : 0.92;
-      const start = (text.length - 1) * spacing * 0.5;
+      const start = -(text.length - 1) * spacing * 0.5;
       for (let i = 0; i < text.length; i++) {
         const glyph = GLYPHS[text[i]];
         for (let row = 0; row < 7; row++) for (let col = 0; col < 5; col++) {
           if (glyph[row][col] !== '1') continue;
-          this.root.add(box('sign-letter', [0.13, 0.13, 0.12], material,
+          letters.add(box('sign-letter', [0.13, 0.13, 0.12], material,
             new THREE.Vector3(start + i * spacing + (col - 2) * 0.14,
-              11.85 - line * 0.72 - row * 0.13, -0.23)));
+              11.85 - line * 0.72 - row * 0.13, 0.23)));
         }
       }
     }

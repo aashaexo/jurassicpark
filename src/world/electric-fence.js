@@ -56,4 +56,11 @@ export class ElectricFence {
     const dz = camera.position.z - this.root.position.z;
     this.humLevel = Math.max(0, 1 - Math.hypot(dx, dz) / 24);
   }
+
+  trimBays(count = 3) {
+    const maxZ = count * 6;
+    for (const child of this.root.children) {
+      if (child.position.z > maxZ + 0.1) child.visible = false;
+    }
+  }
 }

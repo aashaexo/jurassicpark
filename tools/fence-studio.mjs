@@ -12,10 +12,11 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high&fenceStudio=1' }, 
   for (const [file, side] of [['fence-front.png', 0], ['fence-three-quarter.png', 8]]) {
     await page.evaluate((side) => {
       const g = window.__game;
-      g.camera.position.set(g.fence.root.position.x + side,
-        g.fence.root.position.y + 3.3, g.fence.root.position.z - 24);
+      g.fence.trimBays(3);
+      g.camera.position.set(g.fence.root.position.x + (side ? 10 : 8),
+        g.fence.root.position.y + 3.0, g.fence.root.position.z + (side ? -8 : 8));
       g.camera.lookAt(g.fence.root.position.x, g.fence.root.position.y + 2,
-        g.fence.root.position.z + 18);
+        g.fence.root.position.z + 8);
       g.camera.updateMatrixWorld();
       g.setPaused(true);
       g.renderOnce();
