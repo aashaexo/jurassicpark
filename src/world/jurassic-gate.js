@@ -26,12 +26,12 @@ export class JurassicGate {
     const centerX = 7;
     this.root.position.x = centerX;
     const stone = new THREE.MeshStandardMaterial({ color: 0x655b4d, roughness: 0.95 });
-    const timber = new THREE.MeshStandardMaterial({ color: 0x392517, roughness: 0.9 });
+    const timber = new THREE.MeshStandardMaterial({ color: 0x5a3218, roughness: 0.86 });
     const sign = new THREE.MeshStandardMaterial({
-      color: 0x24160e, roughness: 0.8, emissive: 0x080300, emissiveIntensity: 0.2,
+      color: 0x321b0c, roughness: 0.8, emissive: 0x0c0400, emissiveIntensity: 0.25,
     });
     const gold = new THREE.MeshStandardMaterial({
-      color: 0xb98a35, roughness: 0.55, metalness: 0.1,
+      color: 0xe0b84f, roughness: 0.5, metalness: 0.1,
     });
     const fire = new THREE.MeshStandardMaterial({
       color: 0xff6a16, emissive: 0xff2500, emissiveIntensity: 3,
@@ -97,7 +97,7 @@ export class JurassicGate {
       flame.scale.set(0.9, 1.8, 0.9);
       flame.castShadow = true;
       this.root.add(flame);
-      const light = new THREE.PointLight(0xff6a22, 5.0, 16, 2);
+      const light = new THREE.PointLight(0xff6a22, 9.0, 18, 2);
       light.position.copy(flame.position);
       this.root.add(light);
     }
