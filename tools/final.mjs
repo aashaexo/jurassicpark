@@ -23,20 +23,77 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
   await page.waitForTimeout(3000);
   for (const [name, subjectKind, pos, target] of shots) {
     console.log(`capturing ${name}`);
-    const settled = await page.evaluate(([name, pos, target]) => {
+    const settled = await page.evaluate(([name, subjectKind, pos, target]) => {
       const g = window.__game;
+      const T = window.THREE;
       g.goTo(0.84);
       g.warp(1.5);
+      if (subjectKind === 'gate') {
+        for (const z of [-304, -292, -280, -268, -256]) g.veg.suppressZone(7, z, 8);
+      }
       g.setPaused(true);
-      g.gate.root.visible = name.includes('gate');
-      g.fence.root.visible = name.includes('fence');
-      g.jeep.root.visible = name.includes('jeep');
-      g.dinosaurs.root.visible = !name.includes('gate') &&
-        !name.includes('fence') && !name.includes('jeep');
-      const y = g.terrain.height(pos[0], pos[1]) + 1.7;
-      const ty = g.terrain.height(target[0], target[1]) + 2.5;
-      g.camera.position.set(pos[0], y, pos[1]);
-      g.camera.lookAt(target[0], ty, target[1]);
+      g.gate.root.visible = subjectKind === 'gate';
+      g.fence.root.visible = subjectKind === 'fence';
+      g.jeep.root.visible = subjectKind === 'jeep';
+      g.dinosaurs.root.visible = subjectKind !== 'gate' &&
+        subjectKind !== 'fence' && subjectKind !== 'jeep';
+      const subject = subjectKind === 'gate' ? g.gate.root :
+        subjectKind === 'fence' ? g.fence.root :
+          subjectKind === 'jeep' ? g.jeep.root :
+            g.dinosaurs.creatures.find(c => c.species === subjectKind)?.group;
+      if (!subjectKind) {
+        const y = g.terrain.height(pos[0], pos[1]) + 1.7;
+        const ty = g.terrain.height(target[0], target[1]) + 2.5;
+        g.camera.position.set(pos[0], y, pos[1]);
+        g.camera.lookAt(target[0], ty, target[1]);
+        g.camera.updateMatrixWorld();
+        g.veg.update(0, g.camera, g.sky.sunDir, g.sun.color, g.hemi.color);
+        let nearbyVegetation = 0;
+        for (const c of g.veg.cells) {
+          const dx = c.x - g.camera.position.x, dz = c.z - g.camera.position.z;
+          if (dx * dx + dz * dz <= 40 * 40 && c.group.visible)
+            for (const mesh of c.hi.children) nearbyVegetation += mesh.count;
+        }
+        if (nearbyVegetation < 8) throw new Error(`${name} has only ${nearbyVegetation} nearby vegetation instances`);
+        return { position: g.camera.position.toArray(), nearbyVegetation,
+          coverage: null, contained: true, obstructionFree: true };
+      }
+      if (!subject) throw new Error(`missing final subject: ${subjectKind}`);
+      const box = new T.Box3().setFromObject(subject);
+      const center = box.getCenter(new T.Vector3());
+      const size = box.getSize(new T.Vector3());
+      const base = new T.Vector3(pos[0], g.terrain.height(pos[0], pos[1]) + 1.7, pos[1]);
+      const look = new T.Vector3(target[0], g.terrain.height(target[0], target[1]) + 2.5, target[1]);
+      const direction = look.clone().sub(base).normalize();
+      let chosen = null;
+      for (let back = 0; back <= 80; back += 4) {
+        const candidate = base.clone().addScaledVector(direction, -back);
+        g.camera.position.copy(candidate);
+        g.camera.lookAt(look);
+        g.camera.updateMatrixWorld();
+        const corners = [];
+        for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y])
+          for (const z of [box.min.z, box.max.z]) corners.push(new T.Vector3(x, y, z)
+            .applyMatrix4(g.camera.matrixWorldInverse).applyMatrix4(g.camera.projectionMatrix));
+        const x0 = Math.max(-1, Math.min(...corners.map(p => p.x)));
+        const x1 = Math.min(1, Math.max(...corners.map(p => p.x)));
+        const y0 = Math.max(-1, Math.min(...corners.map(p => p.y)));
+        const y1 = Math.min(1, Math.max(...corners.map(p => p.y)));
+        const coverage = Math.max(0, x1 - x0) * Math.max(0, y1 - y0) / 4;
+        const contained = corners.every(p => p.x >= -1 && p.x <= 1 && p.y >= -1 && p.y <= 1);
+        const aim = center.clone();
+        if (subjectKind === 'gate') aim.x += 4.8;
+        const ray = new T.Raycaster(candidate, aim.sub(candidate).normalize());
+        const hits = ray.intersectObject(subject, true);
+        const obstructionFree = hits.length > 0;
+        if (coverage >= 0.02 && obstructionFree) {
+          chosen = { candidate, coverage, contained, obstructionFree };
+          break;
+        }
+      }
+      if (!chosen) throw new Error(`${name} has no unobstructed contained camera candidate`);
+      g.camera.position.copy(chosen.candidate);
+      g.camera.lookAt(look);
       g.camera.updateMatrixWorld();
       g.veg.update(0, g.camera, g.sky.sunDir, g.sun.color, g.hemi.color);
       let nearbyVegetation = 0;
@@ -47,8 +104,10 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
         for (const mesh of c.hi.children) nearbyVegetation += mesh.count;
       }
       if (nearbyVegetation < 8) throw new Error(`${name} has only ${nearbyVegetation} nearby vegetation instances`);
-      return { position: g.camera.position.toArray(), nearbyVegetation };
-    }, [name, pos, target]);
+      return { position: g.camera.position.toArray(), nearbyVegetation,
+        coverage: chosen.coverage, contained: chosen.contained,
+        obstructionFree: chosen.obstructionFree };
+    }, [name, subjectKind, pos, target]);
     await page.waitForTimeout(700);
     const actual = await page.evaluate(() => window.__game.camera.position.toArray());
     const error = Math.hypot(actual[0] - settled.position[0], actual[1] - settled.position[1], actual[2] - settled.position[2]);
@@ -59,7 +118,7 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
       new Promise((_, reject) => setTimeout(() =>
         reject(new Error(`capture timeout: ${name}`)), 300_000)),
     ]);
-    console.log(`captured ${name} in ${Date.now() - shotStart} ms camera=${actual.map(v => v.toFixed(3)).join(',')} nearbyVegetation=${settled.nearbyVegetation} subject=${subjectKind || 'valley'}`);
+    console.log(`captured ${name} in ${Date.now() - shotStart} ms camera=${actual.map(v => v.toFixed(3)).join(',')} coverage=${settled.coverage == null ? 'n/a' : settled.coverage.toFixed(3)} obstructionFree=${settled.obstructionFree} nearbyVegetation=${settled.nearbyVegetation} subject=${subjectKind || 'valley'}`);
   }
 });
 for (const [name] of shots) {

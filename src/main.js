@@ -6,6 +6,7 @@
  * load-bearing rather than debug convenience.
  */
 import * as THREE from 'three';
+if (typeof window !== 'undefined') window.THREE = THREE;
 import { Trail } from './world/path.js';
 import { Terrain, makeTerrainMaterial } from './world/terrain.js';
 import { Sky } from './render/sky.js';
