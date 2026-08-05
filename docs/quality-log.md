@@ -296,3 +296,23 @@ instances: 1
 The integrated smoke capture at the clearing stop reported 366 scene calls and
 approximately 3.78 million visible triangles under SwiftShader. Browser errors
 and warnings were empty.
+
+## Brachiosaurus anatomy pass
+
+Reworked the hero animal from rigid capped parts into a continuous lofted,
+skinned body:
+
+- one stitched tail-to-shoulder-to-neck body surface;
+- smooth cross-section width/height changes through the barrel, shoulder,
+  hips, tail and neck;
+- separate continuous lofted limb tubes with broad columnar profiles,
+  joint bulges and wider shoulder/hip entries;
+- forelimbs longer than hindlimbs to create the characteristic sloping back;
+- gentle S-curve neck and thick, elevated tapering tail;
+- procedural mottling, counter-shading and a normal detail texture;
+- clean turntable ground with the player body and scene fog removed.
+
+The new turntable and walk captures were regenerated after the loft rewrite.
+The continuous mesh removes the old visible cylinder seams, but the current
+close-up still needs another art pass on the head silhouette, joint folds and
+true foot-target IK before this can be called final.

@@ -283,9 +283,10 @@ class Game {
       this.veg.root.visible = false;
       this.ruins.root.visible = false;
       this.water.root.visible = false;
+      scene.fog = null;
       const ground = new THREE.Mesh(
         new THREE.PlaneGeometry(40, 40),
-        new THREE.MeshStandardMaterial({ color: 0x5d563f, roughness: 1 }),
+        new THREE.MeshStandardMaterial({ color: 0x918a73, roughness: 1 }),
       );
       ground.rotation.x = -Math.PI / 2;
       ground.receiveShadow = true;
@@ -307,6 +308,7 @@ class Game {
                              this.collision).attach(this.canvas);
     this.body = new PlayerBody(this.renderer, this.walker, { tier: this.tier });
     scene.add(this.body.root);
+    if (this.dinoName) this.body.root.visible = false;
     /* First-person limbs and the complete external body use separate layers.
      * This camera sees only the camera-aligned representation; PlayerBody
      * exposes the complete one to the depth traversal just long enough to cast
