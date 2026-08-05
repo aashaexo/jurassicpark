@@ -479,7 +479,7 @@ class Game {
     this.camera.matrixWorldInverse.copy(this.camera.matrixWorld).invert();
     this.veg.update(dt, this.camera, this.sky.sunDir, this.sun.color, this.hemi.color);
     this.dinosaurs.update(dt);
-    this.gate?.update(dt);
+    this.gate?.update(performance.now() * 0.001);
     this.ruins.update(dt, this.camera);
     this.water.update(dt, this.camera, this.sky.sunDir, this.sun.color,
                       this.hemi.color, this.sun.intensity);
