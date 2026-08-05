@@ -19,6 +19,18 @@ function log(name, radius, length, material, position) {
   return mesh;
 }
 
+const GLYPHS = {
+  J: ['11111', '00100', '00100', '00100', '10100', '10100', '01100'],
+  U: ['10001', '10001', '10001', '10001', '10001', '11011', '01110'],
+  R: ['11110', '10001', '10001', '11110', '10100', '10010', '10001'],
+  A: ['01110', '10001', '10001', '11111', '10001', '10001', '10001'],
+  S: ['01111', '10000', '10000', '01110', '00001', '00001', '11110'],
+  I: ['11111', '00100', '00100', '00100', '00100', '00100', '11111'],
+  C: ['01111', '10000', '10000', '10000', '10000', '10000', '01111'],
+  P: ['11110', '10001', '10001', '11110', '10000', '10000', '10000'],
+  K: ['10001', '10010', '10100', '11000', '10100', '10010', '10001'],
+};
+
 export class JurassicGate {
   constructor(terrain, z = -304) {
     this.root = new THREE.Group();
@@ -26,12 +38,12 @@ export class JurassicGate {
     const centerX = 7;
     this.root.position.x = centerX;
     const stone = new THREE.MeshStandardMaterial({ color: 0x655b4d, roughness: 0.95 });
-    const timber = new THREE.MeshStandardMaterial({ color: 0x5a3218, roughness: 0.86 });
+    const timber = new THREE.MeshStandardMaterial({ color: 0x51483b, roughness: 0.98, metalness: 0 });
     const sign = new THREE.MeshStandardMaterial({
       color: 0x321b0c, roughness: 0.8, emissive: 0x0c0400, emissiveIntensity: 0.25,
     });
     const gold = new THREE.MeshStandardMaterial({
-      color: 0xe0b84f, roughness: 0.5, metalness: 0.1,
+      color: 0x17191a, roughness: 0.9, metalness: 0.65,
     });
     const fire = new THREE.MeshStandardMaterial({
       color: 0xff6a16, emissive: 0xff2500, emissiveIntensity: 3,
@@ -42,10 +54,14 @@ export class JurassicGate {
       this.root.add(box('stone-footing', [2.0, 0.65, 2.0], stone,
         new THREE.Vector3(x, footingY + 0.3, z)));
       for (let row = 0; row < 7; row++) {
-        this.root.add(log('tower-stacked-log', 0.48, 3.1, timber,
-          new THREE.Vector3(x, footingY + 1.0 + row * 0.9, z)));
-        this.root.add(box('tower-log-end-band', [1.05, 0.1, 0.1], gold,
-          new THREE.Vector3(x, footingY + 1.0 + row * 0.9, z - 1.58)));
+        const offset = (row % 2 ? 0.12 : -0.08);
+        this.root.add(log('tower-stacked-log', 0.48, 3.1 + (row % 3) * 0.12, timber,
+          new THREE.Vector3(x + offset, footingY + 1.0 + row * 0.9, z)));
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.035, 6, 14), gold);
+        ring.name = 'weathered-log-end-ring';
+        ring.position.set(x + offset, footingY + 1.0 + row * 0.9, z - 1.58);
+        ring.rotation.x = Math.PI / 2;
+        this.root.add(ring);
       }
       this.root.add(box('tower-cap', [2.2, 0.45, 2.2], timber,
         new THREE.Vector3(x, footingY + 7.35, z)));
@@ -69,39 +85,54 @@ export class JurassicGate {
     this.root.add(box('sign-board', [8.6, 1.45, 0.32], sign,
       new THREE.Vector3(0, y + 8.9, z - 0.22)));
     const letters = 'JURASSIC PARK';
-    const segments = {
-      J: 'bc', U: 'bcdef', R: 'abdeg', A: 'abcefg', S: 'acdfg', I: 'bc',
-      C: 'adfe', P: 'abefg', K: 'aefgh',
-    };
-    const bars = {
-      a: [0, 0.28, 0.34, 0.1], b: [0.17, 0.1, 0.1, 0.34],
-      c: [0.17, -0.28, 0.1, 0.34], d: [0, -0.35, 0.34, 0.1],
-      e: [-0.17, -0.28, 0.1, 0.34], f: [-0.17, 0.1, 0.1, 0.34],
-      g: [0, -0.03, 0.34, 0.1], h: [-0.17, 0, 0.1, 0.1],
-    };
-    for (let i = 0; i < letters.length; i++) {
-      if (letters[i] === ' ') continue;
-      const x = -3.95 + i * 0.66;
-      for (const key of segments[letters[i]]) {
-        const [dx, dy, sx, sy] = bars[key];
-        this.root.add(box(`sign-letter-${letters[i]}-${key}`, [sx, sy, 0.08], gold,
-          new THREE.Vector3(x + dx, y + 8.9 + dy, z - 0.42)));
+    let cursor = -3.9;
+    for (const letter of letters) {
+      if (letter === ' ') { cursor += 0.35; continue; }
+      for (let row = 0; row < 7; row++) for (let col = 0; col < 5; col++) {
+        if (GLYPHS[letter][row][col] !== '1') continue;
+        this.root.add(box(`sign-letter-${letter}-${row}-${col}`, [0.15, 0.15, 0.1], gold,
+          new THREE.Vector3(cursor + col * 0.16, y + 9.28 - row * 0.16, z - 0.42)));
       }
+      cursor += 0.9;
+    }
+    const jungleLeaf = new THREE.MeshStandardMaterial({ color: 0x263b26, roughness: 1 });
+    const jungleTrunk = new THREE.MeshStandardMaterial({ color: 0x312c22, roughness: 1 });
+    for (const side of [-1, 1]) for (let i = 0; i < 5; i++) {
+      const tx = centerX + side * (7.2 + (i % 2) * 1.5);
+      const tz = z - 12 + i * 5;
+      const ty = terrain.height(tx, tz);
+      this.root.add(log('gate-side-tree-trunk', 0.18 + (i % 3) * 0.08, 5.5,
+        jungleTrunk, new THREE.Vector3(tx - centerX, ty + 2.7, tz - z)));
+      const canopy = new THREE.Mesh(new THREE.IcosahedronGeometry(1.8 + (i % 2) * 0.7, 1),
+        jungleLeaf);
+      canopy.name = 'gate-side-jungle';
+      canopy.position.set(tx - centerX, ty + 5.3, tz - z);
+      canopy.scale.set(1.2, 1.5, 1.1);
+      canopy.castShadow = true;
+      this.root.add(canopy);
     }
     for (const x of [-4.25, 4.25]) {
       this.root.add(box('torch-sconce', [0.3, 1.5, 0.3], timber,
         new THREE.Vector3(x, y + 4.5, z - 1.7)));
-      const flame = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 8), fire);
+      const flame = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.9, 10), fire);
       flame.name = 'gate-torch-flame';
       flame.position.set(x, y + 5.3, z - 1.7);
       flame.scale.set(0.9, 1.8, 0.9);
       flame.castShadow = true;
       this.root.add(flame);
-      const light = new THREE.PointLight(0xff6a22, 9.0, 18, 2);
+      const light = new THREE.PointLight(0xff6a22, 4.5, 14, 2);
       light.position.copy(flame.position);
       this.root.add(light);
+      this.flames ??= [];
+      this.flames.push({ flame, light, phase: x });
     }
   }
 
-  update() {}
+  update(time = 0) {
+    for (const { flame, light, phase } of this.flames || []) {
+      const flicker = 0.88 + 0.12 * Math.sin(time * 8 + phase);
+      flame.scale.y = 1.2 * flicker;
+      light.intensity = 7.0 + 2.0 * Math.sin(time * 7 + phase);
+    }
+  }
 }

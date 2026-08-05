@@ -7,9 +7,9 @@ const out = path.resolve('shots/park-content');
 fs.mkdirSync(out, { recursive: true });
 await run({ width: 1280, height: 720, hash: 'manual&tier=high&park=1' }, async ({ page }) => {
   const shots = [
-    ['gate-eye.png', 7, -289, -304],
-    ['gate-left.png', 1, -287, -304],
-    ['gate-through.png', 7, -311, -304],
+    ['gate-eye.png', 7, -268, -304],
+    ['gate-left.png', 1, -266, -304],
+    ['gate-through.png', 7, -268, -304],
   ];
   for (const [name, x, z, targetZ] of shots) {
     await page.evaluate(([name, x, z, targetZ]) => {

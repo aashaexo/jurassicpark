@@ -20,8 +20,9 @@ function skinTexture(seed = 1) {
     for (let x = 0; x < size; x++) {
       const p = Math.sin((x + seed * 19) * 0.075) *
         Math.sin((y - seed * 13) * 0.091) +
-        0.3 * Math.sin((x + y) * 0.43 + seed);
-      const scale = 0.68 + 0.30 * p;
+        0.42 * Math.sin((x + y) * 0.43 + seed) +
+        0.22 * Math.sin((x * 1.7 - y * 1.25) * 0.19 + seed * 2.1);
+      const scale = 0.56 + 0.46 * p;
       const belly = y / size;
       const dorsal = 0.72 + belly * 0.38;
       const i = (y * size + x) * 4;
@@ -71,9 +72,9 @@ function materialFor(seed, debugNormals = false) {
       .replace('#include <map_fragment>', `
         vec3 creatureN = abs(normalize(vCreatureNormalWorld));
         creatureN /= max(0.001, creatureN.x + creatureN.y + creatureN.z);
-        vec3 creatureMap = texture2D(map, vCreatureWorld.yz * 0.09).rgb * creatureN.x
-          + texture2D(map, vCreatureWorld.xz * 0.09).rgb * creatureN.y
-          + texture2D(map, vCreatureWorld.xy * 0.09).rgb * creatureN.z;
+        vec3 creatureMap = texture2D(map, vCreatureWorld.yz * 0.20).rgb * creatureN.x
+          + texture2D(map, vCreatureWorld.xz * 0.20).rgb * creatureN.y
+          + texture2D(map, vCreatureWorld.xy * 0.20).rgb * creatureN.z;
         diffuseColor *= vec4(creatureMap * 1.25, 1.0);
       `);
     if (!material.userData.shaderLogged) {
