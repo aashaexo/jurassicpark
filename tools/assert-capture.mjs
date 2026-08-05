@@ -1,5 +1,6 @@
-export async function assertCaptureCoverage(page, kind, minCoverage = 0.05) {
-  return page.evaluate(({ kind, minCoverage }) => {
+export async function assertCaptureCoverage(page, kind, options = {}) {
+  const minCoverage = options.minCoverage ?? 0.05;
+  return page.evaluate(({ kind, minCoverage, contain }) => {
     const g = window.__game;
     const subject = kind === 'dino' ? g.dinosaurs.creatures[0].mesh
       : kind === 'gate' ? g.gate.root
@@ -38,9 +39,14 @@ export async function assertCaptureCoverage(page, kind, minCoverage = 0.05) {
     const ix = Math.max(0, Math.min(1, x1) - Math.max(-1, x0));
     const iy = Math.max(0, Math.min(1, y1) - Math.max(-1, y0));
     const coverage = ix * iy / 4;
+    const contained = corners.every(p => p.x >= -1 && p.x <= 1 &&
+      p.y >= -1 && p.y <= 1);
+    if (contain && !contained) {
+      throw new Error(`capture subject is cropped: ${kind}`);
+    }
     if (coverage < minCoverage) {
       throw new Error(`capture subject coverage ${coverage.toFixed(4)} below ${minCoverage}: ${kind}`);
     }
-    return { kind, coverage, bounds: { min: min.toArray(), max: max.toArray() } };
-  }, { kind, minCoverage });
+    return { kind, coverage, contained, bounds: { min: min.toArray(), max: max.toArray() } };
+  }, { kind, minCoverage, contain: options.contain ?? false });
 }

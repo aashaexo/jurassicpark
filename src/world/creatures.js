@@ -20,8 +20,9 @@ function skinTexture(seed = 1) {
     for (let x = 0; x < size; x++) {
       const p = Math.sin((x + seed * 19) * 0.075) *
         Math.sin((y - seed * 13) * 0.091) +
-        0.42 * Math.sin((x + y) * 0.43 + seed) +
-        0.22 * Math.sin((x * 1.7 - y * 1.25) * 0.19 + seed * 2.1);
+        0.28 * Math.sin((x + y) * 0.43 + seed) +
+        0.18 * Math.sin((x * 1.7 - y * 1.25) * 0.19 + seed * 2.1) +
+        0.12 * Math.sin((x * 3.7 + y * 2.1) * 0.11 + seed * 4.7);
       const scale = 0.56 + 0.46 * p;
       const belly = y / size;
       const dorsal = 0.72 + belly * 0.38;
@@ -72,9 +73,9 @@ function materialFor(seed, debugNormals = false) {
       .replace('#include <map_fragment>', `
         vec3 creatureN = abs(normalize(vCreatureNormalWorld));
         creatureN /= max(0.001, creatureN.x + creatureN.y + creatureN.z);
-        vec3 creatureMap = texture2D(map, vCreatureWorld.yz * 0.20).rgb * creatureN.x
-          + texture2D(map, vCreatureWorld.xz * 0.20).rgb * creatureN.y
-          + texture2D(map, vCreatureWorld.xy * 0.20).rgb * creatureN.z;
+        vec3 creatureMap = texture2D(map, vCreatureWorld.yz * 0.13).rgb * creatureN.x
+          + texture2D(map, vCreatureWorld.xz * 0.13).rgb * creatureN.y
+          + texture2D(map, vCreatureWorld.xy * 0.13).rgb * creatureN.z;
         diffuseColor *= vec4(creatureMap * 1.25, 1.0);
       `);
     if (!material.userData.shaderLogged) {
@@ -250,14 +251,25 @@ export class CreatureRig {
       volumes.push(C([0, 2.3, -0.8], [0, 2.0, -3.5], 0.32, 0.08, 0.16));
       for (const x of [-0.5, 0.5]) volumes.push(C([x, 2.0, 0.2], [x * 1.15, 0.3, -0.1], 0.2, 0.1, 0.15));
     } else {
-      volumes.push(E([0, 4.0, 0], [2.0, 1.8, 3.0], 0.55));
-      volumes.push(C([0, 4.2, 2.0], [0, 4.8, 4.0], 0.75, 0.5, 0.3));
-      volumes.push(E([0, 5.0, 4.7], [1.3, 1.25, 1.55], 0.3));
-      volumes.push(E([0, 5.3, 5.7], [1.2, 0.8, 1.1], 0.2));
-      volumes.push(C([0, 3.8, -2.0], [0, 3.1, -7.0], 0.75, 0.12, 0.3));
+      volumes.push(E([0, 4.0, 0], [1.05, 1.45, 2.25], 0.5));
+      volumes.push(C([0, 4.05, 1.6], [0, 4.25, 3.4], 0.72, 0.48, 0.3));
+      volumes.push(C([0, 4.3, 3.35], [0, 4.05, 4.35], 0.52, 0.34, 0.2));
+      volumes.push(E([0, 4.0, 4.8], [0.82, 0.72, 0.95], 0.25));
+      volumes.push(E([0, 4.15, 5.55], [0.82, 0.58, 0.62], 0.16));
+      volumes.push(C([0, 3.75, -1.5], [0, 3.55, -4.0], 0.72, 0.38, 0.28));
+      volumes.push(C([0, 3.55, -4.0], [0, 3.45, -7.0], 0.38, 0.08, 0.2));
       for (const x of [-1.3, 1.3]) {
-        volumes.push(C([x, 3.5, 1.0], [x * 1.05, 0.65, 0.7], 0.6, 0.35, 0.25));
-        volumes.push(C([x * 0.55, 3.7, 3.8], [x * 0.75, 3.0, 4.5], 0.18, 0.1, 0.12));
+        volumes.push(C([x, 3.5, 0.8], [x * 1.08, 2.25, 1.0], 0.72, 0.48, 0.25));
+        volumes.push(C([x * 1.08, 2.25, 1.0], [x * 0.72, 0.75, 1.3], 0.48, 0.3, 0.18));
+        volumes.push(C([x * 0.72, 0.7, 1.3], [x * 0.7, 0.18, 1.0], 0.3, 0.18, 0.12));
+        for (const toe of [-1, 0, 1]) {
+          volumes.push(C([x * 0.7 + toe * 0.25, 0.18, 1.0],
+            [x * 0.7 + toe * 0.32, 0.1, 0.45], 0.12, 0.05, 0.08));
+        }
+      }
+      for (const x of [-0.48, 0.48]) {
+        volumes.push(C([x, 3.9, 3.45], [x * 1.1, 3.25, 4.0], 0.14, 0.08, 0.1));
+        volumes.push(C([x * 1.1, 3.25, 4.0], [x * 1.25, 3.18, 4.25], 0.08, 0.04, 0.08));
       }
     }
     const boneForPoint = () => ({ indices: [0], weights: [1] });

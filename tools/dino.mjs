@@ -31,7 +31,7 @@ await run({
     const size = box.getSize(g.camera.position.clone());
     const fov = g.camera.fov * Math.PI / 180;
     const vertical = Math.max(size.y, mode === 'side' ? size.z : size.x);
-    const distance = vertical / (2 * Math.tan(fov * 0.5)) * 1.22;
+    const distance = vertical / (2 * Math.tan(fov * 0.5)) * 2.6;
     let offset;
     if (mode === 'side') offset = center.clone().set(distance, 0, 0);
     else if (mode === 'front') offset = center.clone().set(-distance * 0.68, 0, -distance * 0.74);
@@ -66,7 +66,10 @@ await run({
   for (const [file, mode] of poses) {
     await assertMode(false);
     await studioCamera(mode);
-    coverage[file] = await assertCaptureCoverage(page, 'dino');
+    coverage[file] = await assertCaptureCoverage(page, 'dino', {
+      contain: mode === 'side' || mode === 'front',
+      minCoverage: mode === 'side' || mode === 'front' ? 0.02 : 0.05,
+    });
     await capture(page, path.join(out, file));
   }
   await studioCamera('side');
