@@ -62,11 +62,13 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
       }
       if (!subject) throw new Error(`missing final subject: ${subjectKind}`);
       if (subjectKind !== 'gate' && subjectKind !== 'fence' && subjectKind !== 'jeep') {
-        g.veg.suppressZone(subject.position.x, subject.position.z, 3);
+        g.veg.suppressZone(subject.position.x, subject.position.z, 10);
         if (subjectKind === 'gallimimus') {
           for (const c of g.dinosaurs.creatures.filter(c => c.species === 'gallimimus'))
             g.veg.suppressZone(c.group.position.x, c.group.position.z, 8);
         }
+      } else if (subjectKind === 'fence' || subjectKind === 'jeep') {
+        g.veg.suppressZone(subject.position.x, subject.position.z, 10);
       }
       const box = new T.Box3().setFromObject(subject);
       const center = box.getCenter(new T.Vector3());
@@ -96,6 +98,10 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
           for (let p = object; p; p = p.parent) if (p === subject) return true;
           return false;
         };
+        const isVisible = (object) => {
+          for (let p = object; p; p = p.parent) if (p.visible === false) return false;
+          return true;
+        };
         const aims = [center];
         for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y])
           for (const z of [box.min.z, box.max.z]) aims.push(new T.Vector3(x, y, z));
@@ -110,7 +116,8 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
         const clearRays = aims.filter(aim => {
           const ray = new T.Raycaster(candidate, aim.clone().sub(candidate).normalize());
           const hits = ray.intersectObjects(g.scene.children, true);
-          return hits.length > 0 && belongsToSubject(hits[0].object);
+          const first = hits.find(hit => isVisible(hit.object));
+          return Boolean(first && belongsToSubject(first.object));
         }).length;
         const obstructionFree = clearRays >= 6;
         const score = coverage - (clearRays / aims.length) * 0.5 - (contained ? 0 : 0.25);
