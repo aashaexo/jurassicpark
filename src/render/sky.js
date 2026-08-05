@@ -15,7 +15,7 @@ uniform vec3 uSunDirection;
 uniform float uTurbidity;
 uniform float uCameraHeight;
 const float PI = 3.14159265359;
-const vec3 BETA_R = vec3(4.5e-3, 1.8e-2, 1.9e-2);
+const vec3 BETA_R = vec3(2.8e-3, 1.8e-2, 2.2e-2);
 const float BETA_M = 0.0021;
 float rayleighPhase(float mu) { return 3.0 / (16.0 * PI) * (1.0 + mu * mu); }
 float miePhase(float mu, float g) {
@@ -64,7 +64,7 @@ void main() {
   // Daylight floor from the integrated solar spectrum. This keeps the
   // analytic sky in a photographic daytime range instead of near-black.
   float daylight = max(0.0, sun.y);
-  radiance += vec3(0.03, 0.24, 0.23) * (0.55 + 0.9 * max(view.y, 0.0));
+  radiance += vec3(0.008, 0.28, 0.25) * (0.55 + 0.9 * max(view.y, 0.0));
   radiance += vec3(0.13, 0.072, 0.028) * daylight * exp(-max(view.y, 0.0) * 5.0);
   float disc = smoothstep(0.996, 0.9998, mu);
   float limb = 1.0 - 0.32 * (1.0 - smoothstep(0.9997, 1.0, mu));

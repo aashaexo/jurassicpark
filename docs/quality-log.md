@@ -80,3 +80,19 @@ small central island while the sky dome's underside filled the frame.
   broad terrain depth; the sky is still too violet at the zenith.
 - `media/hills-sky.png` — distant terrain and blue atmospheric sky are visible
   together; the horizon is no longer the underside of the sky sphere.
+
+## Fresh post-fix captures
+
+- `media/road-ground.png` — the eye-height road shot now shows a real valley
+  at close range with a continuous road and terrain surface; it is correctly
+  lit after the sun-direction fix, although the dirt remains too orange and
+  lacks the reference's fine green ground variation.
+- `media/hills-sky.png` — the frame shows blue atmospheric sky over the
+  distant hills rather than the sky dome's brown underside; the zenith still
+  trends too violet in the wider views.
+- `media/valley-overview.png` — the camera now overlooks the actual 600 m
+  valley, with terrain depth across the frame and no stacked-chunk slab; the
+  broad material palette remains too warm and dark.
+- `media/toward-sun.png` — the derived eye-height road view has readable
+  sunlit terrain and no detached geometry, but its foreground is still more
+  stylized orange dirt than a photographic jungle valley.
