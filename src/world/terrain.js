@@ -135,6 +135,8 @@ export function createTerrain(renderer, textures, mode = 'beauty') {
       for (let i = 0; i < pos.count; i++) {
         const x = pos.getX(i) + (cx - 2.5) * CHUNK_SIZE;
         const z = pos.getZ(i) + (cz - 2.5) * CHUNK_SIZE;
+        pos.setX(i, x);
+        pos.setZ(i, z);
         pos.setY(i, heightAt(x, z));
       }
       geometry.computeVertexNormals();

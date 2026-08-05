@@ -4,6 +4,7 @@ import { createGrade } from './render/grade.js';
 import { bakeGroundTextures } from './world/groundTex.js';
 import { createTerrain } from './world/terrain.js';
 import { createRoad, roadSample } from './world/road.js';
+import { validateTerrainGroup } from './world/terrainDiagnostics.js';
 import { PlayerController } from './player/controller.js';
 
 const canvas = document.querySelector('#view');
@@ -167,6 +168,7 @@ animate();
 
 window.__game = {
   renderer, scene, camera, player, terrain, sky, tier, mode, roadSample,
+  validateTerrain: () => validateTerrainGroup(terrain.group),
   info: () => ({ fps, calls: sceneCalls, triangles: sceneTriangles }),
 };
 window.__sceneReady = true;

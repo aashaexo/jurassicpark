@@ -66,3 +66,17 @@ small central island while the sky dome's underside filled the frame.
 - `media/hills-sky.png` — derived overview pose; the horizon is no longer the
   painted underside of the sky dome, but the atmospheric sky is still too
   saturated.
+
+## Iteration: restored 600 m terrain placement
+
+- `npm run dump` passes with terrain bounds `[-300, 300]` in both X and Z.
+- All 36 chunk centers are separated on a 100 m grid, with no duplicated
+  world centers; non-adjacent chunk sphere overlap checks pass.
+- `media/road-ground.png` — the eye-height road frame now shows the actual
+  valley-scale terrain rather than the old stacked 100 m slab; the frame is
+  continuously lit and brown/orange, but still lacks the reference's green
+  material richness.
+- `media/valley-overview.png` — the 600 m landform occupies the frame with
+  broad terrain depth; the sky is still too violet at the zenith.
+- `media/hills-sky.png` — distant terrain and blue atmospheric sky are visible
+  together; the horizon is no longer the underside of the sky sphere.

@@ -17,6 +17,10 @@ page.on('pageerror', (error) => errors.push(error.message));
 await page.goto('http://localhost:8099/?tier=high');
 await page.waitForFunction(() => window.__sceneReady === true, null, { timeout: 30000 });
 await page.waitForTimeout(1200);
+const terrainValidation = await page.evaluate(() => window.__game.validateTerrain());
+if (!terrainValidation.ok) {
+  throw new Error(`Terrain validation failed:\n${terrainValidation.failures.join('\n')}`);
+}
 const viewpoints = await page.evaluate(() => {
   const g = window.__game;
   const terrainY = (x, z) => g.terrain.heightAt(x, z);
@@ -91,6 +95,7 @@ const result = {
   consoleErrors: await page.evaluate(() => window.__consoleErrors || []),
   info: await page.evaluate(() => window.__game.info()),
   radiance: await page.evaluate(() => window.__game.sky.radianceDiagnostics()),
+  terrainValidation,
   shots: shotReport,
   perf,
 };
