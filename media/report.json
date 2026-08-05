@@ -1,0 +1,14 @@
+{
+  "errors": [],
+  "warnings": [],
+  "consoleErrors": [],
+  "info": {
+    "fps": 10.000000000000002,
+    "calls": 23,
+    "triangles": 37824
+  },
+  "perf": {
+    "fps": 1.8560910722019728,
+    "frameMs": 538.7666666666579
+  }
+}
