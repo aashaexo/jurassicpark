@@ -26,14 +26,14 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high&parkStudio=1' }, a
       const fov = g.camera.fov * Math.PI / 180;
       if (mode === 'sign') {
         const sign = center.clone().set(7, g.terrain.height(7, -304) + 8.9, -304);
-        g.camera.position.copy(sign).add(new sign.constructor(0, 1.0, 7));
+        g.camera.position.copy(sign).add(new sign.constructor(0, 1.0, -7));
         g.camera.lookAt(sign);
       } else {
         const span = Math.max(size.x, size.y);
         const distance = span / (2 * Math.tan(fov * 0.5)) * 1.25;
         const offset = mode === 'front'
-          ? center.clone().set(0, 0.5, distance)
-          : center.clone().set(distance * 0.72, 0.5, distance * 0.72);
+          ? center.clone().set(0, 0.5, -distance)
+          : center.clone().set(distance * 0.72, 0.5, -distance * 0.72);
         g.camera.position.copy(center).add(offset);
         g.camera.lookAt(center.clone().add(new center.constructor(0, 0.2, 0)));
       }

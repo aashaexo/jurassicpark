@@ -365,7 +365,9 @@ class Game {
     this.gate.root.traverse(o => {
       if (o.material && o.material.isMeshStandardMaterial) gateMaterials.add(o.material);
     });
-    for (const material of gateMaterials) patchCanopyLight(material, this.canopy);
+    if (!this.parkStudio) {
+      for (const material of gateMaterials) patchCanopyLight(material, this.canopy);
+    }
 
     /* Nothing is allocated on the audio device here and no buffer is
      * synthesized: constructing Ambience only chains the walker's footfall

@@ -91,6 +91,10 @@ export class JurassicGate {
       this.root.add(box('sign-raised-border', [w, h, 0.08], timber,
         new THREE.Vector3(sx, sy, -0.2)));
     }
+    for (const y of [10.72, 11.2, 11.68]) {
+      this.root.add(box('sign-plank-seam', [7.65, 0.025, 0.035], timber,
+        new THREE.Vector3(0, y, -0.205)));
+    }
     for (const x of [-3.55, 3.55]) for (const yb of [10.45, 11.95]) {
       const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.08, 10), iron);
       bolt.rotation.x = Math.PI / 2;
