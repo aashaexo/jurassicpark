@@ -18,7 +18,7 @@ const shots = [
 ];
 for (const [name] of shots) fs.rmSync(path.join(out, name), { force: true });
 const start = Date.now();
-await run({ width: 1600, height: 900, hash: 'manual&tier=high' }, async ({ page }) => {
+await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page }) => {
   for (const [name, pos, target] of shots) {
     console.log(`capturing ${name}`);
     await page.evaluate(([pos, target]) => {
@@ -28,8 +28,6 @@ await run({ width: 1600, height: 900, hash: 'manual&tier=high' }, async ({ page 
       g.camera.position.set(pos[0], y, pos[1]);
       g.camera.lookAt(target[0], ty, target[1]);
       g.camera.updateMatrixWorld();
-      g.setPaused(true);
-      g.renderOnce();
     }, [pos, target]);
     await Promise.race([
       capture(page, path.join(out, name)),

@@ -9,6 +9,8 @@ import * as THREE from 'three';
 import { polygonizeVolumes } from './metaball.js';
 
 const GEOMETRY_CACHE = new Map();
+const POLYGONIZE_COUNTS = new Map();
+const POLYGONIZE_TIMES = new Map();
 
 const TAU = Math.PI * 2;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -279,7 +281,8 @@ export class CreatureRig {
       }
     }
     const boneForPoint = () => ({ indices: [0], weights: [1] });
-    const spacing = species === 'trex' ? 0.18 : 0.16;
+    const spacing = ({ triceratops: 0.20, gallimimus: 0.18,
+      dilophosaurus: 0.16, trex: 0.24 })[species] || 0.16;
     const cacheKey = `${species}:${spacing}`;
     const started = performance.now();
     let geometry = GEOMETRY_CACHE.get(cacheKey);
@@ -289,6 +292,10 @@ export class CreatureRig {
       GEOMETRY_CACHE.set(cacheKey, geometry);
     }
     this.polygonizeMs = performance.now() - started;
+    if (!this.polygonizeCached) {
+      POLYGONIZE_COUNTS.set(species, (POLYGONIZE_COUNTS.get(species) || 0) + 1);
+      POLYGONIZE_TIMES.set(species, (POLYGONIZE_TIMES.get(species) || 0) + this.polygonizeMs);
+    }
     const skeleton = new THREE.Skeleton([root]);
     root.updateMatrixWorld(true);
     skeleton.calculateInverses();
@@ -386,7 +393,7 @@ export class CreatureRig {
         ));
       }
     }
-    const spacing = this.species === 'trex' ? 0.24 : 0.16;
+    const spacing = this.species === 'brachiosaurus' ? 0.24 : 0.16;
     const cacheKey = `${this.species}:${spacing}`;
     const started = performance.now();
     let geometry = GEOMETRY_CACHE.get(cacheKey);
@@ -400,6 +407,10 @@ export class CreatureRig {
       GEOMETRY_CACHE.set(cacheKey, geometry);
     }
     this.polygonizeMs = performance.now() - started;
+    if (!this.polygonizeCached) {
+      POLYGONIZE_COUNTS.set(this.species, (POLYGONIZE_COUNTS.get(this.species) || 0) + 1);
+      POLYGONIZE_TIMES.set(this.species, (POLYGONIZE_TIMES.get(this.species) || 0) + this.polygonizeMs);
+    }
     const mesh = new THREE.SkinnedMesh(geometry, this.material);
     mesh.name = 'implicit-brachiosaurus-surface';
     mesh.bind(skeleton);
@@ -523,6 +534,11 @@ export class DinosaurSystem {
       }
       add('dilophosaurus', 13, -286, 41, 0.7);
       add('trex', 70, -360, 51, 1);
+      console.info('[dinosaurs] polygonisation', Object.fromEntries(
+        [...POLYGONIZE_COUNTS].map(([species, count]) => [species, {
+          count, ms: POLYGONIZE_TIMES.get(species) || 0,
+        }]),
+      ));
     }
   }
 

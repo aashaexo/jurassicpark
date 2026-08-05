@@ -109,11 +109,21 @@ export function polygonizeVolumes(volumes, {
   const ny = Math.ceil((max.y - min.y) / spacing);
   const nz = Math.ceil((max.z - min.z) / spacing);
   const sample = new Float32Array((nx + 1) * (ny + 1) * (nz + 1));
+  const cellDiagonal = Math.sqrt(3) * spacing;
+  const bounds = volumes.map(v => {
+    if (v.type === 'ellipsoid') {
+      return { c: v.center, r: Math.max(v.radius.x, v.radius.y, v.radius.z) };
+    }
+    const c = v.a.clone().add(v.b).multiplyScalar(0.5);
+    return { c, r: c.distanceTo(v.a) + Math.max(v.ra, v.rb) };
+  });
+  const outside = p => bounds.every(b =>
+    p.distanceToSquared(b.c) > (b.r + cellDiagonal) ** 2);
   const index = (x, y, z) => x + (nx + 1) * (y + (ny + 1) * z);
   const p = new THREE.Vector3();
   for (let z = 0; z <= nz; z++) for (let y = 0; y <= ny; y++) for (let x = 0; x <= nx; x++) {
     p.set(min.x + x * spacing, min.y + y * spacing, min.z + z * spacing);
-    sample[index(x, y, z)] = volumeDistance(p, volumes);
+    sample[index(x, y, z)] = outside(p) ? 1 : volumeDistance(p, volumes);
   }
   const corner = [
     [0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0],
