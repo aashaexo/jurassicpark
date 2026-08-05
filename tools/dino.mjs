@@ -29,7 +29,7 @@ await run({
       const g = window.__game;
       g.setPaused(false);
       g.dinosaurs.creatures[0].speed = 0.8;
-      g.dinosaurs.update(0.18);
+      g.dinosaurs.creatures[0].update(0.18, { walk: true });
       g.setPaused(true);
       g.camera.position.set(6.5, 4.5, 8);
       g.camera.lookAt(0, 4.9, 0);

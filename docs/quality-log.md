@@ -316,3 +316,38 @@ The new turntable and walk captures were regenerated after the loft rewrite.
 The continuous mesh removes the old visible cylinder seams, but the current
 close-up still needs another art pass on the head silhouette, joint folds and
 true foot-target IK before this can be called final.
+
+## Brachiosaurus density and limb pass
+
+The loft resolution was raised for the hero budget:
+
+```text
+body: 180 spine sections × 64 radial segments
+head: 40 sections × 36 radial segments
+limbs: 24 sections × 32 radial segments
+turntable animal: 41,448 triangles
+```
+
+The body and limbs now have closed end caps, broad fleshy foot pads and three
+short blunt toes per foot. Shoulder/hip blend masses cover the limb junctions,
+and the tail profile is arced higher to remain clear of the ground. The skin
+material now binds both a mottled albedo `DataTexture` and a procedural normal
+`DataTexture`; UVs follow the loft's along/around parameterisation.
+
+Honest capture read:
+
+- `shots/dinosaurs/brachiosaurus/turntable.png` — the higher tessellation
+  removes the previous large planar facets and the body reads as a continuous
+  surface. Closed legs, feet and shoulder masses are now visible. The
+  Brachiosaurus silhouette is substantially stronger, though the head details
+  and joint wrinkles remain simpler than the requested final close-up.
+- `walk-00.png` through `walk-07.png` — the dense legs remain closed through
+  the gait sequence and the feet are now present at ground level. The motion
+  has more mass than the previous version, but the terrain IK is still an
+  approximation rather than a full planted-foot solver.
+- `in-world-brachiosaurus.png` — the herd remains atmospherically integrated;
+  the reveal still needs a brighter, more deliberate clearing composition to
+  separate the full 13 m silhouette from the understory.
+
+The density smoke capture reported 371 scene calls and approximately 3.81M
+visible triangles with no browser or console errors.

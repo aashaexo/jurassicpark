@@ -113,6 +113,21 @@ function loftGeometry(points, radii, radial, boneIndices, weights = null, maxBon
       idx.push(a, c, b, b, c, d);
     }
   }
+  const start = pos.length / 3;
+  const a = points[0], b = points[count - 1];
+  pos.push(a.x, a.y, a.z, b.x, b.y, b.z);
+  nor.push(0, -1, 0, 0, 1, 0);
+  uv.push(0, 0.5, 1, 0.5);
+  skin.push(boneIndices[0], boneIndices[0], boneIndices[0], 0,
+    boneIndices[count - 1], boneIndices[count - 1], boneIndices[count - 1], 0);
+  sw.push(1, 0, 0, 0, 1, 0, 0, 0);
+  for (let j = 0; j < radial; j++) {
+    const s0 = j, s1 = j + 1;
+    idx.push(start, s1, s0);
+    const e0 = (count - 1) * row + j;
+    const e1 = e0 + 1;
+    idx.push(start + 1, e0, e1);
+  }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
@@ -123,6 +138,20 @@ function loftGeometry(points, radii, radial, boneIndices, weights = null, maxBon
   g.computeBoundingBox();
   g.computeBoundingSphere();
   return g;
+}
+
+function resampleProfile(profile, count) {
+  const points = [], radii = [], bones = [];
+  for (let i = 0; i < count; i++) {
+    const t = i / (count - 1) * (profile.length - 1);
+    const a = Math.floor(t);
+    const b = Math.min(profile.length - 1, a + 1);
+    const f = t - a;
+    points.push(profile[a].p.clone().lerp(profile[b].p, f));
+    radii.push(profile[a].r.clone().lerp(profile[b].r, f));
+    bones.push(Math.round(a + f));
+  }
+  return { points, radii, bones };
 }
 
 function skinned(geometry, material, skeleton, name) {
@@ -160,11 +189,11 @@ export class CreatureRig {
     const root = bone(this.group, 'root', new THREE.Vector3());
     this.bones.root = root;
     const profile = [
-      profilePoint(9.6, 4.05, 0.18, 0.18),
-      profilePoint(8.2, 4.08, 0.32, 0.28),
-      profilePoint(6.8, 4.12, 0.52, 0.42),
-      profilePoint(5.3, 4.2, 0.8, 0.65),
-      profilePoint(3.9, 4.35, 1.2, 1.0),
+      profilePoint(9.6, 4.55, 0.18, 0.18),
+      profilePoint(8.2, 4.62, 0.32, 0.28),
+      profilePoint(6.8, 4.65, 0.52, 0.42),
+      profilePoint(5.3, 4.62, 0.8, 0.65),
+      profilePoint(3.9, 4.52, 1.2, 1.0),
       profilePoint(2.4, 4.55, 1.58, 1.3),
       profilePoint(1.1, 4.8, 1.72, 1.48),
       profilePoint(-0.3, 5.05, 1.8, 1.62),
@@ -186,10 +215,10 @@ export class CreatureRig {
       spine.push(bone(parent, `spine-${i}`, profile[i].p.clone().sub(prev)));
     }
     this.bones.spine = spine;
-    const points = profile.map(v => v.p);
-    const radii = profile.map(v => v.r);
-    const bi = profile.map((_, i) => i + 1);
-    const geom = loftGeometry(points, radii, 20, bi, profile.map((_, i) => 0.72), spine.length);
+    const dense = resampleProfile(profile, 180);
+    dense.bones = dense.bones.map(i => i + 1);
+    const geom = loftGeometry(dense.points, dense.radii, 64, dense.bones,
+      dense.points.map(() => 0.72), spine.length);
     const bodyGeometry = geom;
 
     const headProfile = [
@@ -200,8 +229,10 @@ export class CreatureRig {
     ];
     const headBone = bone(spine[spine.length - 1], 'head', new THREE.Vector3(0, 0, -0.3));
     this.bones.head = headBone;
-    const hg = loftGeometry(headProfile.map(v => v.p), headProfile.map(v => v.r),
-      16, headProfile.map(() => spine.length), headProfile.map(() => 1), spine.length);
+    const hd = resampleProfile(headProfile, 40);
+    hd.bones = hd.bones.map(() => spine.length);
+    const hg = loftGeometry(hd.points, hd.radii, 36, hd.bones,
+      hd.points.map(() => 1), spine.length);
     const headGeometry = hg;
 
     this.bones.legs = [];
@@ -229,8 +260,10 @@ export class CreatureRig {
         new THREE.Vector2(0.72, 0.32),
       ];
       const legBoneBase = 1 + spine.length + (this.bones.legs.length - 1) * 3;
-      const lg = loftGeometry(lp, rr, 14, [legBoneBase, legBoneBase + 1, legBoneBase + 2, legBoneBase + 2],
-        [0.72, 0.82, 0.9, 1], legBoneBase + 2);
+      const ld = resampleProfile(lp.map((p, i) => ({ p, r: rr[i] })), 24);
+      ld.bones = ld.bones.map(i => legBoneBase + clamp(i, 0, 2));
+      const lg = loftGeometry(ld.points, ld.radii, 32, ld.bones,
+        ld.points.map(() => 0.92), legBoneBase + 2);
       legGeometries.push([lg, `${name}-continuous-leg`]);
     }
 
@@ -246,13 +279,75 @@ export class CreatureRig {
     }
 
     const detail = new THREE.MeshStandardMaterial({ color: 0x100e0a, roughness: 0.5 });
+    const flesh = new THREE.MeshStandardMaterial({
+      map: this.material.map,
+      normalMap: this.material.normalMap,
+      color: 0xd0b77a,
+      roughness: 0.9,
+    });
+    for (const leg of this.bones.legs) {
+      const pad = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 14), flesh);
+      pad.name = `${leg.name}-fleshy-foot-pad`;
+      pad.position.set(0, -0.42, -0.24);
+      pad.scale.set(0.82, 0.3, 1.05);
+      pad.castShadow = pad.receiveShadow = true;
+      leg.foot.add(pad);
+      for (const side of [-1, 0, 1]) {
+        const toe = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 10), flesh);
+        toe.name = `${leg.name}-blunt-toe`;
+        toe.position.set(side * 0.24, -0.46, -0.86);
+        toe.scale.set(0.2, 0.13, 0.3);
+        toe.castShadow = toe.receiveShadow = true;
+        leg.foot.add(toe);
+      }
+    }
+    for (const [side, z] of [[-1, -2.7], [1, -2.7], [-1, 1.15], [1, 1.15]]) {
+      const mass = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 12), flesh);
+      mass.name = side < 0 ? 'left-shoulder-hip-blend' : 'right-shoulder-hip-blend';
+      mass.position.set(side * 1.12, z < 0 ? 5.55 : 4.6, z);
+      mass.scale.set(0.95, z < 0 ? 1.2 : 1.05, 1.0);
+      mass.castShadow = mass.receiveShadow = true;
+      this.group.add(mass);
+    }
+    const detailHead = this.bones.head;
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 12), flesh);
+    dome.name = 'domed-nasal-arch';
+    dome.position.set(0, 0.33, -0.72);
+    dome.scale.set(0.53, 0.3, 0.72);
+    dome.castShadow = dome.receiveShadow = true;
+    detailHead.add(dome);
+    const jaw = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 10), flesh);
+    jaw.name = 'defined-lower-jaw';
+    jaw.position.set(0, -0.28, -0.83);
+    jaw.scale.set(0.43, 0.18, 0.76);
+    jaw.castShadow = jaw.receiveShadow = true;
+    detailHead.add(jaw);
+    const mouth = new THREE.Mesh(
+      new THREE.BoxGeometry(0.62, 0.035, 0.035),
+      detail,
+    );
+    mouth.name = 'mouth-line';
+    mouth.position.set(0, -0.22, -1.48);
+    detailHead.add(mouth);
+    for (const side of [-1, 1]) {
+      const nostril = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), detail);
+      nostril.name = 'top-nostril';
+      nostril.position.set(side * 0.2, 0.62, -1.18);
+      nostril.scale.set(1.2, 0.5, 0.8);
+      detailHead.add(nostril);
+      const brow = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), flesh);
+      brow.name = 'brow-ridge';
+      brow.position.set(side * 0.42, 0.3, -0.86);
+      brow.scale.set(0.2, 0.12, 0.34);
+      detailHead.add(brow);
+    }
     const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), detail);
-    eye.position.set(-0.42, 12.27, -7.48);
+    eye.position.set(-0.42, 0.28, -1.0);
     eye.castShadow = true;
-    this.group.add(eye);
+    detailHead.add(eye);
     const eye2 = eye.clone();
     eye2.position.x = 0.42;
-    this.group.add(eye2);
+    detailHead.add(eye2);
     this.group.userData.creatureRig = this;
   }
 
@@ -284,7 +379,23 @@ export class CreatureRig {
       this.bones.spine[i].rotation.z += Math.sin(p * 0.28 - i * 0.14) * 0.008;
     }
     if (this.terrain) {
-      this.group.position.y = this.terrain.height(this.group.position.x, this.group.position.z);
+      const n = this.terrain.normal(this.group.position.x, this.group.position.z);
+      const yaw = this.group.rotation.y;
+      this.group.rotation.set(
+        Math.atan2(n.z, n.y) * 0.65,
+        yaw,
+        Math.atan2(-n.x, n.y) * 0.65,
+      );
+      const ground = this.terrain.height(this.group.position.x, this.group.position.z);
+      this.group.position.y = ground;
+      for (const leg of this.bones.legs) {
+        const wx = this.group.position.x + leg.end.x;
+        const wz = this.group.position.z + leg.end.z;
+        const target = this.terrain.height(wx, wz) - ground;
+        const delta = clamp(target, -0.45, 0.45);
+        leg.lower.position.y = leg.knee.y + delta * 0.5;
+        leg.foot.position.y = leg.ankle.y + delta;
+      }
       this._groundY = this.group.position.y;
     }
   }
