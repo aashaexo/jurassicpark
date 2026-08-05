@@ -1531,6 +1531,7 @@ export class Vegetation {
       this.cells.push({
         group, hi: hiG, lo: loG,
         x: (b.ti + 0.5) * tile, z: (b.tj + 0.5) * tile, cull, near,
+        items: b.items,
       });
     }
   }
@@ -1594,8 +1595,22 @@ export class Vegetation {
   suppressZone(x, z, radius) {
     const r2 = radius * radius;
     for (const cell of this.cells) {
-      const dx = cell.x - x, dz = cell.z - z;
-      if (dx * dx + dz * dz < r2) cell.group.visible = false;
+      const hidden = new Set();
+      cell.items.forEach((it, i) => {
+        const p = it.m.elements;
+        const dx = p[12] - x, dz = p[14] - z;
+        if (dx * dx + dz * dz < r2) hidden.add(i);
+      });
+      if (!hidden.size) continue;
+      const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+      for (const mesh of cell.hi.children) {
+        for (const i of hidden) mesh.setMatrixAt(i, zero);
+        mesh.instanceMatrix.needsUpdate = true;
+      }
+      for (const mesh of cell.lo?.children || []) {
+        for (const i of hidden) mesh.setMatrixAt(i, zero);
+        mesh.instanceMatrix.needsUpdate = true;
+      }
     }
   }
 

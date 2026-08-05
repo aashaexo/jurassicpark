@@ -40,6 +40,7 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
       const subject = subjectKind === 'gate' ? g.gate.root :
         subjectKind === 'fence' ? g.fence.root :
           subjectKind === 'jeep' ? g.jeep.root :
+            subjectKind === 'gallimimus' ? g.dinosaurs.root :
             g.dinosaurs.creatures.find(c => c.species === subjectKind)?.group;
       if (!subjectKind) {
         const y = g.terrain.height(pos[0], pos[1]) + 1.7;
@@ -59,6 +60,13 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
           coverage: null, contained: true, obstructionFree: true };
       }
       if (!subject) throw new Error(`missing final subject: ${subjectKind}`);
+      if (subjectKind !== 'gate' && subjectKind !== 'fence' && subjectKind !== 'jeep') {
+        g.veg.suppressZone(subject.position.x, subject.position.z, 3);
+        if (subjectKind === 'gallimimus') {
+          for (const c of g.dinosaurs.creatures.filter(c => c.species === 'gallimimus'))
+            g.veg.suppressZone(c.group.position.x, c.group.position.z, 8);
+        }
+      }
       const box = new T.Box3().setFromObject(subject);
       const center = box.getCenter(new T.Vector3());
       const size = box.getSize(new T.Vector3());
@@ -81,11 +89,24 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
         const y1 = Math.min(1, Math.max(...corners.map(p => p.y)));
         const coverage = Math.max(0, x1 - x0) * Math.max(0, y1 - y0) / 4;
         const contained = corners.every(p => p.x >= -1 && p.x <= 1 && p.y >= -1 && p.y <= 1);
-        const aim = center.clone();
-        if (subjectKind === 'gate') aim.x += 4.8;
-        const ray = new T.Raycaster(candidate, aim.sub(candidate).normalize());
-        const hits = ray.intersectObject(subject, true);
-        const obstructionFree = hits.length > 0;
+        const belongsToSubject = (object) => {
+          for (let p = object; p; p = p.parent) if (p === subject) return true;
+          return false;
+        };
+        const aims = [center];
+        if (subjectKind === 'gate') aims.push(center.clone().setX(center.x + 4.8));
+        if (subjectKind === 'gallimimus') {
+          for (const c of g.dinosaurs.creatures.filter(c => c.species === 'gallimimus')) {
+            const p = new T.Vector3();
+            c.group.getWorldPosition(p);
+            aims.push(p);
+          }
+        }
+        const obstructionFree = aims.some(aim => {
+          const ray = new T.Raycaster(candidate, aim.clone().sub(candidate).normalize());
+          const hits = ray.intersectObjects(g.scene.children, true);
+          return hits.length > 0 && belongsToSubject(hits[0].object);
+        });
         if (coverage >= 0.02 && obstructionFree) {
           chosen = { candidate, coverage, contained, obstructionFree };
           break;
