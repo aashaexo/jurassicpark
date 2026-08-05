@@ -17,6 +17,9 @@ uniform float uTime;
 uniform float uExposure;
 uniform float uBloom;
 uniform float uDof;
+uniform vec3 uFogColor;
+uniform float uFogDensity;
+uniform vec2 uNearFar;
 varying vec2 vUv;
 float hash21(vec2 p) {
   p = fract(p * vec2(123.34, 345.45));
@@ -45,6 +48,9 @@ void main() {
   float bright = max(max(blur.r, blur.g), blur.b);
   c += max(blur - 0.72, 0.0) * uBloom * 0.28;
   float depth = texture2D(tDepth, vUv).r;
+  float viewDepth = (uNearFar.x * uNearFar.y) / ((uNearFar.y - uNearFar.x) * depth - uNearFar.y);
+  float aerial = 1.0 - exp(-uFogDensity * abs(viewDepth));
+  c = mix(c, uFogColor, clamp(aerial, 0.0, 0.82));
   float nearBlur = smoothstep(0.0, 0.018, depth) * smoothstep(0.09, 0.02, depth);
   c = mix(c, blur, nearBlur * uDof);
   vec2 centered = vUv - 0.5;
@@ -71,9 +77,12 @@ export function createGrade(renderer, width, height, tier = 'high') {
       tDepth: { value: null },
       uResolution: { value: new THREE.Vector2(width, height) },
       uTime: { value: 0 },
-      uExposure: { value: tier === 'low' ? 1.02 : 1.13 },
+      uExposure: { value: tier === 'low' ? 1.9 : 2.35 },
       uBloom: { value: tier === 'high' ? 1.0 : 0.65 },
       uDof: { value: tier === 'low' ? 0.0 : 0.28 },
+      uFogColor: { value: new THREE.Color(0.08, 0.11, 0.08) },
+      uFogDensity: { value: tier === 'high' ? 0.004 : 0.006 },
+      uNearFar: { value: new THREE.Vector2(0.1, 2200) },
     },
     depthTest: false,
     depthWrite: false,

@@ -22,14 +22,12 @@ void main() {
   if (uChannel == 0) {
     gl_FragColor = vec4(albedo, 1.0);
   } else if (uChannel == 1) {
-    vec3 a; float hl; float rr; float oo;
-    surf(vUv - vec2(uTexel, 0.0), a, hl, rr, oo);
-    surf(vUv + vec2(uTexel, 0.0), a, height, rr, oo);
-    float left = hl;
-    surf(vUv + vec2(0.0, uTexel), a, hl, rr, oo);
-    surf(vUv - vec2(0.0, uTexel), a, height, rr, oo);
-    float down = height;
-    gl_FragColor = vec4(heightToNormal(left, height, down, hl, uNormalStrength), 1.0);
+    vec3 a; float left; float right; float down; float up; float rr; float oo;
+    surf(vUv - vec2(uTexel, 0.0), a, left, rr, oo);
+    surf(vUv + vec2(uTexel, 0.0), a, right, rr, oo);
+    surf(vUv - vec2(0.0, uTexel), a, down, rr, oo);
+    surf(vUv + vec2(0.0, uTexel), a, up, rr, oo);
+    gl_FragColor = vec4(heightToNormal(left, right, down, up, uNormalStrength), 1.0);
   } else {
     gl_FragColor = vec4(ao, roughness, 0.0, 1.0);
   }

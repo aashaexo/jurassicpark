@@ -22,6 +22,8 @@ const renderer = new THREE.WebGLRenderer({
   depth: true,
   stencil: false,
 });
+// Scene passes stay linear. The final grade shader writes to the default
+// framebuffer, where the renderer performs the sole sRGB conversion.
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.NoToneMapping;
 renderer.toneMappingExposure = 1;
@@ -38,67 +40,35 @@ const quality = {
 }[tier] || { dpr: 1.35, shadows: 1536, fog: 0.0021 };
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x304438);
-scene.fog = new THREE.FogExp2(0x3e5140, quality.fog);
 const camera = new THREE.PerspectiveCamera(67, 1, 0.1, 2200);
 
 const sky = new Sky(renderer, scene);
+scene.background = sky.horizonRadiance.clone();
+scene.fog = new THREE.FogExp2(sky.horizonRadiance, quality.fog);
 sky.addVisibleSky();
 sky.bakeEnvironment();
+scene.environmentIntensity = 0.62;
 
 const textures = bakeGroundTextures(renderer, tier);
 const terrain = createTerrain(renderer, textures);
 scene.add(terrain.group);
 scene.add(createRoad(terrain));
 
-const sun = new THREE.DirectionalLight(0xffc58e, 3.2);
+const sun = new THREE.DirectionalLight(0xffc58e, 8.0);
 sun.castShadow = true;
 sun.shadow.mapSize.set(quality.shadows, quality.shadows);
-sun.shadow.camera.left = -180;
-sun.shadow.camera.right = 180;
-sun.shadow.camera.top = 180;
-sun.shadow.camera.bottom = -180;
+sun.shadow.camera.left = -150;
+sun.shadow.camera.right = 150;
+sun.shadow.camera.top = 150;
+sun.shadow.camera.bottom = -150;
 sun.shadow.camera.near = 10;
 sun.shadow.camera.far = 650;
 sun.shadow.bias = -0.00018;
-sun.shadow.normalBias = 0.55;
+sun.shadow.normalBias = 150 / quality.shadows;
 sun.shadow.radius = 3.5;
 scene.add(sun, sun.target);
-const hemi = new THREE.HemisphereLight(0x9bb9a1, 0x3e2d1b, 1.25);
+const hemi = new THREE.HemisphereLight(sky.horizonRadiance.clone().offsetHSL(0.03, 0.02, 0.24), 0x352919, 1.75);
 scene.add(hemi);
-
-function addDistantTrees() {
-  const trunkGeometry = new THREE.CylinderGeometry(0.7, 1.5, 13, 7);
-  const crownGeometry = new THREE.ConeGeometry(8, 22, 9);
-  const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x2a2115, roughness: 0.96 });
-  const crownMaterial = new THREE.MeshStandardMaterial({ color: 0x172c19, roughness: 0.94 });
-  const trunks = new THREE.InstancedMesh(trunkGeometry, trunkMaterial, 120);
-  const crowns = new THREE.InstancedMesh(crownGeometry, crownMaterial, 120);
-  const matrix = new THREE.Matrix4();
-  let index = 0;
-  for (let i = 0; i < 120; i++) {
-    const angle = (i / 120) * Math.PI * 2 + Math.sin(i * 4.8) * 0.1;
-    const radius = 235 + (i % 9) * 5.4;
-    const x = Math.cos(angle) * radius + Math.sin(i * 2.9) * 28;
-    const z = Math.sin(angle) * radius + Math.cos(i * 1.7) * 22;
-    const y = terrain.heightAt(x, z);
-    const scale = 0.55 + (i % 7) * 0.09;
-    matrix.makeTranslation(x, y + 6.5 * scale, z);
-    matrix.scale(new THREE.Vector3(scale, scale, scale));
-    trunks.setMatrixAt(index, matrix);
-    matrix.makeTranslation(x, y + 17 * scale, z);
-    matrix.scale(new THREE.Vector3(scale, scale, scale));
-    crowns.setMatrixAt(index, matrix);
-    index++;
-  }
-  trunks.instanceMatrix.needsUpdate = true;
-  crowns.instanceMatrix.needsUpdate = true;
-  trunks.castShadow = true;
-  crowns.castShadow = false;
-  trunks.receiveShadow = true;
-  scene.add(trunks, crowns);
-}
-addDistantTrees();
 
 const player = new PlayerController(camera, terrain.heightAt);
 const hdr = new THREE.WebGLRenderTarget(1, 1, {
@@ -113,6 +83,8 @@ hdr.depthTexture = new THREE.DepthTexture(1, 1, THREE.UnsignedIntType);
 hdr.depthTexture.minFilter = THREE.NearestFilter;
 hdr.depthTexture.magFilter = THREE.NearestFilter;
 const grade = createGrade(renderer, 1, 1, tier);
+grade.material.uniforms.uFogColor.value.copy(sky.horizonRadiance);
+grade.material.uniforms.uFogDensity.value = quality.fog * 2.0;
 
 let width = 1, height = 1;
 function resize() {

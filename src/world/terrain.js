@@ -1,129 +1,148 @@
 import * as THREE from 'three';
-import { roadInfluence } from './road.js';
+import { Noise2D, smoothstep } from './noise.js';
+import { roadSample } from './road.js';
 
-const WORLD = 600;
+export const WORLD_SIZE = 600;
 const CHUNKS = 6;
-const CHUNK = WORLD / CHUNKS;
-
-function hash(x, z) {
-  const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453;
-  return s - Math.floor(s);
-}
-function noise(x, z) {
-  const ix = Math.floor(x), iz = Math.floor(z);
-  const fx = x - ix, fz = z - iz;
-  const ux = fx * fx * (3 - 2 * fx), uz = fz * fz * (3 - 2 * fz);
-  return THREE.MathUtils.lerp(
-    THREE.MathUtils.lerp(hash(ix, iz), hash(ix + 1, iz), ux),
-    THREE.MathUtils.lerp(hash(ix, iz + 1), hash(ix + 1, iz + 1), ux), uz,
-  );
-}
-function fbm(x, z) {
-  let value = 0, amp = 0.5;
-  for (let i = 0; i < 5; i++) {
-    value += noise(x, z) * amp;
-    x = x * 2.04 + 19.2;
-    z = z * 2.04 - 11.7;
-    amp *= 0.5;
-  }
-  return value;
-}
+const CHUNK_SIZE = WORLD_SIZE / CHUNKS;
+const terrainNoise = new Noise2D(0x4A11A);
+const detailNoise = new Noise2D(0x19BEEF);
 
 export function heightAt(x, z) {
-  const edge = Math.max(Math.abs(x), Math.abs(z)) / 300;
-  const ring = Math.max(0, edge - 0.43);
-  const broad = fbm(x * 0.006, z * 0.006);
-  const ridges = Math.abs(noise(x * 0.018, z * 0.018) * 2 - 1);
-  let y = 4 + broad * 7 + ring * ring * 75 + ridges * ring * 20;
-
-  const basin = Math.exp(-(((x + 100) ** 2) / 11500 + ((z - 70) ** 2) / 6500));
-  y -= basin * 6.5;
-
-  const pad = Math.exp(-(((x - 145) ** 2) / 7000 + ((z + 75) ** 2) / 4000));
-  y = THREE.MathUtils.lerp(y, 9.5, pad * 0.86);
-
-  const road = roadInfluence(x, z);
-  const nearby = roadInfluence(x, z);
-  y = THREE.MathUtils.lerp(y, y - 1.8 + (1 - road) * 0.9, nearby);
+  const radius = Math.sqrt(x * x + z * z) / 300;
+  const shoulder = smoothstep(0.34, 0.94, radius);
+  const broad = terrainNoise.fbm(x * 0.0048, z * 0.0048, 5, 0.52);
+  const ridges = terrainNoise.ridged(x * 0.010, z * 0.010, 5, 0.57);
+  const spurs = terrainNoise.ridged(x * 0.028, z * 0.028, 4, 0.58);
+  let y = 3.0 + broad * 5.0 + shoulder * (ridges * 47 + spurs * 16);
+  const basin = Math.exp(-(((x + 92) ** 2) / 16000 + ((z - 76) ** 2) / 9000));
+  const drainage = Math.exp(-((x + 42) ** 2) / 2800) * Math.exp(-((z - 18) ** 2) / 18000);
+  y -= basin * 7.5 + drainage * 1.7;
+  const padMask = Math.exp(-(((x - 142) ** 2) / 8000 + ((z + 78) ** 2) / 5000));
+  y = THREE.MathUtils.lerp(y, 9.2, padMask * 0.92);
+  const road = roadSample(x, z);
+  const roadMask = smoothstep(13.5, 3.5, road.distance);
+  const shoulderMask = smoothstep(17, 5, road.distance);
+  y -= roadMask * 1.8;
+  y += (1 - roadMask) * shoulderMask * (0.7 + 0.45 * Math.sin(road.t * 34.0));
+  const channels = terrainNoise.ridged(x * 0.075, z * 0.075, 3, 0.5);
+  y -= shoulder * channels * channels * 1.8;
+  y += detailNoise.fbm(x * 0.065, z * 0.065, 3, 0.52) * 0.28;
   return y;
 }
 
 function patchTerrainMaterial(material, textures) {
   material.onBeforeCompile = (shader) => {
-    shader.uniforms.tGrass = { value: textures.grass.map };
-    shader.uniforms.tDirt = { value: textures.dirt.map };
-    shader.uniforms.tRock = { value: textures.rock.map };
-    shader.uniforms.uTerrainScale = { value: 0.0105 };
-    shader.vertexShader = `
-      varying vec3 vTerrainWorld;
-      ${shader.vertexShader}
-    `.replace(
+    const maps = ['grass', 'dirt', 'mud', 'gravel', 'rock'];
+    for (const layer of maps) {
+      shader.uniforms[`t${layer}`] = { value: textures[layer].map };
+      shader.uniforms[`o${layer}`] = { value: textures[layer].ormMap };
+    }
+    shader.vertexShader = `varying vec3 vTerrainWorld;\n${shader.vertexShader}`.replace(
       '#include <begin_vertex>',
       '#include <begin_vertex>\n vTerrainWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;',
     );
+    const layerSampling = `
+      vec2 uvA = vTerrainWorld.xz * 0.018;
+      vec2 uvB = vTerrainWorld.xy * 0.014;
+      vec2 uvC = vTerrainWorld.zy * 0.014;
+      vec3 grass = texture2D(tgrass, uvA).rgb;
+      vec3 dirt = texture2D(tdirt, uvA * 1.27 + 0.17).rgb;
+      vec3 mud = texture2D(tmud, uvA * 0.81 - 0.23).rgb;
+      vec3 gravel = texture2D(tgravel, uvA * 1.72 + 0.61).rgb;
+      vec3 upMask = abs(vNormal);
+      vec3 rock = (texture2D(trock, uvA).rgb * upMask.y +
+        texture2D(trock, uvB).rgb * upMask.x + texture2D(trock, uvC).rgb * upMask.z) /
+        max(upMask.x + upMask.y + upMask.z, 0.001);
+      float slope = 1.0 - saturate(vNormal.y);
+      float t = clamp((250.0 - vTerrainWorld.z) / 315.0, 0.0, 1.0);
+      float roadCenter = -260.0 + 445.0 * t + 18.0 * sin(t * 6.9115);
+      float roadMask = smoothstep(14.5, 2.7, abs(vTerrainWorld.x - roadCenter));
+      float basinMask = smoothstep(1.0, 0.0, abs(vTerrainWorld.x + 92.0) / 130.0 + abs(vTerrainWorld.z - 76.0) / 100.0);
+      float macro = 0.82 + 0.22 * noise2(vTerrainWorld.xz * 0.0027);
+      float wGrass = max(0.0, (1.0 - slope * 2.5) * (1.0 - roadMask) * (1.0 - basinMask));
+      float wDirt = max(0.0, roadMask * 1.5 + slope * 0.25);
+      float wMud = max(0.0, basinMask * 1.1 + roadMask * 0.28);
+      float wGravel = max(0.0, roadMask * 0.42 + slope * 0.22);
+      float wRock = max(0.0, slope * 2.0 - 0.25);
+      float total = max(wGrass + wDirt + wMud + wGravel + wRock, 0.001);
+      vec3 blended = (grass * wGrass + dirt * wDirt + mud * wMud + gravel * wGravel + rock * wRock) / total;
+      diffuseColor.rgb *= blended * macro;
+    `;
+    const ormSampling = `
+      vec2 ormUv = vTerrainWorld.xz * 0.018;
+      float ormSlope = 1.0 - saturate(vNormal.y);
+      float ormT = clamp((250.0 - vTerrainWorld.z) / 315.0, 0.0, 1.0);
+      float ormRoad = smoothstep(14.5, 2.7, abs(vTerrainWorld.x - (-260.0 + 445.0 * ormT + 18.0 * sin(ormT * 6.9115))));
+      float ormBasin = smoothstep(1.0, 0.0, abs(vTerrainWorld.x + 92.0) / 130.0 + abs(vTerrainWorld.z - 76.0) / 100.0);
+      float a = max(0.0, (1.0 - ormSlope * 2.5) * (1.0 - ormRoad) * (1.0 - ormBasin));
+      float b = max(0.0, ormRoad * 1.5 + ormSlope * 0.25);
+      float c = max(0.0, ormBasin * 1.1 + ormRoad * 0.28);
+      float d = max(0.0, ormRoad * 0.42 + ormSlope * 0.22);
+      float e = max(0.0, ormSlope * 2.0 - 0.25);
+      float sum = max(a + b + c + d + e, 0.001);
+    `;
     shader.fragmentShader = `
-      uniform sampler2D tGrass;
-      uniform sampler2D tDirt;
-      uniform sampler2D tRock;
-      uniform float uTerrainScale;
       varying vec3 vTerrainWorld;
+      uniform sampler2D tgrass,tdirt,tmud,tgravel,trock;
+      uniform sampler2D ograss,odirt,omud,ogravel,orock;
+      float noise2(vec2 p) {
+        p = fract(p * vec2(123.34, 345.45));
+        p += dot(p, p + 34.345);
+        return fract(p.x * p.y);
+      }
       ${shader.fragmentShader}
-    `.replace(
-      '#include <map_fragment>',
-      `
-        vec2 terrainUv = vTerrainWorld.xz * uTerrainScale;
-        vec3 grassColor = texture2D(tGrass, terrainUv).rgb;
-        vec3 dirtColor = texture2D(tDirt, terrainUv * 1.18 + 0.17).rgb;
-        vec3 rockColor = texture2D(tRock, terrainUv * 0.68 - 0.31).rgb;
-        float slope = 1.0 - saturate(vNormal.y);
-        float roadMask = ${roadInfluence.toString().includes('roadInfluence') ? '0.0' : '0.0'};
-        float basinMask = smoothstep(0.0, 1.0, 1.0 - abs(vTerrainWorld.y - 3.0) / 7.0);
-        vec3 terrainColor = mix(grassColor, rockColor, smoothstep(0.28, 0.80, slope));
-        terrainColor = mix(terrainColor, dirtColor, smoothstep(0.55, 0.82, slope) * 0.35 + basinMask * 0.12);
-        diffuseColor.rgb *= terrainColor * 2.25;
-      `,
-    );
+    `.replace('#include <map_fragment>', layerSampling)
+      .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
+        ${ormSampling}
+        roughnessFactor = clamp((texture2D(ograss, ormUv).g * a + texture2D(odirt, ormUv).g * b +
+          texture2D(omud, ormUv).g * c + texture2D(ogravel, ormUv).g * d + texture2D(orock, ormUv).g * e) / sum, 0.58, 0.98);`)
     material.userData.shader = shader;
   };
-  material.customProgramCacheKey = () => 'jurassic-terrain-splat-v1';
+  material.customProgramCacheKey = () => 'jurassic-terrain-layered-v3';
   return material;
+}
+
+function addSkirt(group, cx, cz, material) {
+  const skirt = new THREE.Mesh(new THREE.BoxGeometry(CHUNK_SIZE + 1, 8, CHUNK_SIZE + 1), material);
+  skirt.position.set((cx - 2.5) * CHUNK_SIZE, -4, (cz - 2.5) * CHUNK_SIZE);
+  skirt.scale.y = 0.2;
+  skirt.name = `terrain-skirt-${cx}-${cz}`;
+  group.add(skirt);
 }
 
 export function createTerrain(renderer, textures) {
   const group = new THREE.Group();
   group.name = '600m-valley-terrain';
   const material = patchTerrainMaterial(new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    roughness: 0.92,
-    metalness: 0,
+    color: 0xffffff, roughness: 0.91, metalness: 0,
     normalMap: textures.grass.normalMap,
-    normalScale: new THREE.Vector2(0.42, 0.42),
+    normalScale: new THREE.Vector2(0.24, 0.24),
   }), textures);
-
   for (let cz = 0; cz < CHUNKS; cz++) {
     for (let cx = 0; cx < CHUNKS; cx++) {
-      const geometry = new THREE.PlaneGeometry(CHUNK, CHUNK, 28, 28);
+      const near = Math.abs(cx - 2.5) <= 1 && Math.abs(cz - 2.5) <= 1;
+      const segments = near ? 128 : 48;
+      const geometry = new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE, segments, segments);
       geometry.rotateX(-Math.PI / 2);
       const pos = geometry.attributes.position;
       for (let i = 0; i < pos.count; i++) {
-        const lx = pos.getX(i) + (cx - CHUNKS / 2 + 0.5) * CHUNK;
-        const lz = pos.getZ(i) + (cz - CHUNKS / 2 + 0.5) * CHUNK;
-        pos.setY(i, heightAt(lx, lz));
+        const x = pos.getX(i) + (cx - 2.5) * CHUNK_SIZE;
+        const z = pos.getZ(i) + (cz - 2.5) * CHUNK_SIZE;
+        pos.setY(i, heightAt(x, z));
       }
       geometry.computeVertexNormals();
       const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.set((cx - CHUNKS / 2 + 0.5) * CHUNK, 0, (cz - CHUNKS / 2 + 0.5) * CHUNK);
       mesh.receiveShadow = true;
-      mesh.name = `terrain-chunk-${cx}-${cz}`;
+      mesh.name = `terrain-chunk-${cx}-${cz}-${segments}`;
       group.add(mesh);
+      if (near) addSkirt(group, cx, cz, material);
     }
   }
-  const pad = new THREE.Mesh(
-    new THREE.CylinderGeometry(47, 50, 0.7, 48),
-    new THREE.MeshStandardMaterial({ color: 0x76705b, roughness: 0.94 }),
-  );
-  pad.scale.z = 0.57;
-  pad.position.set(145, 9.55, -75);
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(48, 52, 0.7, 64),
+    new THREE.MeshStandardMaterial({ color: 0x615a48, roughness: 0.95 }));
+  pad.scale.z = 0.58;
+  pad.position.set(142, 9.4, -78);
   pad.receiveShadow = true;
   pad.name = 'future-gate-pad';
   group.add(pad);
