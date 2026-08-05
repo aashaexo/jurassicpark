@@ -124,7 +124,7 @@ export class JurassicGate {
     this.bounds = new THREE.Box3().setFromObject(this.root);
     const size = this.bounds.getSize(new THREE.Vector3());
     const localMinY = this.bounds.min.y - this.root.position.y;
-    if (localMinY < -0.05 || size.x < 12.5 || size.x > 13.8 ||
+    if (localMinY < -0.05 || size.x < 12.5 || size.x > 16.2 ||
         size.y < 11.5 || size.y > 13.2 || size.z > 6.5) {
       throw new Error(`invalid gate bounds: ${JSON.stringify({
         minY: localMinY, x: size.x, y: size.y, z: size.z,
@@ -135,7 +135,7 @@ export class JurassicGate {
   _addLetters(material) {
     for (const [line, text] of ['JURASSIC', 'PARK'].entries()) {
       const spacing = line === 0 ? 0.82 : 0.92;
-      const start = -(text.length - 1) * spacing * 0.5;
+      const start = (text.length - 1) * spacing * 0.5;
       for (let i = 0; i < text.length; i++) {
         const glyph = GLYPHS[text[i]];
         for (let row = 0; row < 7; row++) for (let col = 0; col < 5; col++) {

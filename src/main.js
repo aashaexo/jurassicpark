@@ -25,6 +25,7 @@ import { Ambience } from './audio/engine.js';
 import { DebugOverlay } from './debug.js';
 import { DinosaurSystem } from './world/creatures.js';
 import { JurassicGate } from './world/jurassic-gate.js';
+import { ElectricFence } from './world/electric-fence.js';
 
 /* Quality tiers.
  *
@@ -116,6 +117,8 @@ class Game {
       new URLSearchParams(location.hash.slice(1)).get('park') === '1';
     this.parkStudio = new URLSearchParams(location.search).get('parkStudio') === '1' ||
       new URLSearchParams(location.hash.slice(1)).get('parkStudio') === '1';
+    this.fenceStudio = new URLSearchParams(location.search).get('fenceStudio') === '1' ||
+      new URLSearchParams(location.hash.slice(1)).get('fenceStudio') === '1';
     this.dinoDebug = new URLSearchParams(location.search).get('debug') ||
       new URLSearchParams(location.hash.slice(1)).get('debug');
 
@@ -290,18 +293,25 @@ class Game {
     scene.add(this.dinosaurs.root);
     this.gate = new JurassicGate(this.terrain);
     scene.add(this.gate.root);
+    this.fence = new ElectricFence(this.terrain);
+    scene.add(this.fence.root);
     if (this.parkCapture) this.veg.suppressZone(7, -304, 18);
-    if (this.dinoName || this.parkStudio) {
+    if (this.dinoName || this.parkStudio || this.fenceStudio) {
       this.terrain.group.visible = false;
       this.veg.root.visible = false;
       this.ruins.root.visible = false;
       this.water.root.visible = false;
       this.dinosaurs.root.visible = false;
+      this.fence.root.visible = false;
     }
-    if (this.dinoName || this.parkCapture || this.parkStudio) {
+    if (this.fenceStudio) {
+      this.gate.root.visible = false;
+      this.fence.root.visible = true;
+    }
+    if (this.dinoName || this.parkCapture || this.parkStudio || this.fenceStudio) {
       scene.fog = null;
     }
-    if (this.dinoName || this.parkStudio) {
+    if (this.dinoName || this.parkStudio || this.fenceStudio) {
       const ground = new THREE.Mesh(
         new THREE.PlaneGeometry(40, 40),
         new THREE.MeshStandardMaterial({ color: 0x918a73, roughness: 1 }),
@@ -345,7 +355,7 @@ class Game {
     this.canopy.setSun(this.sky.sunDir);
     this.atmos = new Atmosphere(this.renderer, this.canopy);
     this.atmos.setTier(this.tier);
-    if (this.dinoName || this.parkCapture || this.parkStudio) {
+    if (this.dinoName || this.parkCapture || this.parkStudio || this.fenceStudio) {
       this.atmos.enabled = false;
       this.atmos.grade.enabled = false;
     }
@@ -487,6 +497,7 @@ class Game {
     this.veg.update(dt, this.camera, this.sky.sunDir, this.sun.color, this.hemi.color);
     this.dinosaurs.update(dt);
     this.gate?.update(performance.now() * 0.001);
+    this.fence?.update(this.camera);
     this.ruins.update(dt, this.camera);
     this.water.update(dt, this.camera, this.sky.sunDir, this.sun.color,
                       this.hemi.color, this.sun.intensity);
