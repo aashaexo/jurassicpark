@@ -22,9 +22,10 @@ function skinTexture(seed = 1) {
     for (let x = 0; x < size; x++) {
       const p = Math.sin((x + seed * 19) * 0.075) *
         Math.sin((y - seed * 13) * 0.091) +
-        0.28 * Math.sin((x + y) * 0.43 + seed) +
-        0.18 * Math.sin((x * 1.7 - y * 1.25) * 0.19 + seed * 2.1) +
-        0.12 * Math.sin((x * 3.7 + y * 2.1) * 0.11 + seed * 4.7);
+        0.08 * Math.sin((x + y) * 0.43 + seed) +
+        0.22 * Math.sin((x * 1.7 - y * 1.25) * 0.19 + seed * 2.1) +
+        0.16 * Math.sin((x * 3.7 + y * 2.1) * 0.11 + seed * 4.7) +
+        0.11 * Math.sin((x * x * 0.013 + y * 1.9) + seed * 3.4);
       const scale = 0.56 + 0.46 * p;
       const belly = y / size;
       const dorsal = 0.72 + belly * 0.38;
@@ -229,7 +230,8 @@ export class CreatureRig {
       volumes.push(E([0, 3.4, 0], [2.25, 2.0, 3.1], 0.6));
       volumes.push(E([0, 3.8, 3.0], [1.55, 1.5, 1.5], 0.4));
       volumes.push(E([0, 4.4, 4.0], [1.45, 1.25, 1.3], 0.3));
-      volumes.push(E([0, 4.4, 4.8], [2.3, 2.0, 0.35], 0.3));
+      volumes.push(E([0, 4.4, 4.65], [1.1, 0.9, 0.22], 0.22));
+      volumes.push(C([0, 4.35, 4.35], [0, 4.4, 4.65], 0.42, 0.22, 0.18));
       volumes.push(C([-0.45, 4.8, 4.5], [-0.65, 4.85, 5.9], 0.22, 0.1, 0.12));
       volumes.push(C([0.45, 4.8, 4.5], [0.65, 4.85, 5.9], 0.22, 0.1, 0.12));
       volumes.push(C([0, 4.35, 4.9], [0, 4.2, 5.7], 0.18, 0.08, 0.1));
@@ -463,8 +465,10 @@ export class CreatureRig {
         yaw,
         Math.atan2(-n.x, n.y) * 0.65,
       );
+      this.mesh.geometry.computeBoundingBox();
+      const localMinY = this.mesh.geometry.boundingBox.min.y;
       const ground = this.terrain.height(this.group.position.x, this.group.position.z);
-      this.group.position.y = ground;
+      this.group.position.y = ground - localMinY;
       for (const leg of this.bones.legs) {
         const wx = this.group.position.x + leg.end.x;
         const wz = this.group.position.z + leg.end.z;

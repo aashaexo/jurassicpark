@@ -6,22 +6,22 @@ import { finish } from './tame.mjs';
 const out = path.resolve('shots/final');
 fs.mkdirSync(out, { recursive: true });
 const shots = [
-  ['gate-approach.png', [7, -268], [7, -304]],
-  ['brachiosaurus-reveal.png', [-45, -360], [-20, -326]],
-  ['fence-line.png', [22, -300], [30, -300]],
-  ['jeep-road.png', [7, -302], [7, -306]],
-  ['triceratops-trail.png', [-8, -286], [-8, -296]],
-  ['gallimimus-flock.png', [34, -292], [42, -300]],
-  ['dilophosaurus-undergrowth.png', [10, -280], [13, -286]],
-  ['trex-distant.png', [52, -340], [70, -360]],
-  ['valley-establishing.png', [0, -250], [0, -330]],
+  ['gate-approach.png', 'gate', [7, -268], [7, -304]],
+  ['brachiosaurus-reveal.png', 'brachiosaurus', [-45, -360], [-20, -326]],
+  ['fence-line.png', 'fence', [22, -300], [30, -300]],
+  ['jeep-road.png', 'jeep', [7, -302], [7, -306]],
+  ['triceratops-trail.png', 'triceratops', [-12, -306], [-8, -296]],
+  ['gallimimus-flock.png', 'gallimimus', [34, -292], [42, -300]],
+  ['dilophosaurus-undergrowth.png', 'dilophosaurus', [10, -280], [13, -286]],
+  ['trex-distant.png', 'trex', [52, -340], [70, -360]],
+  ['valley-establishing.png', null, [0, -250], [0, -330]],
 ];
 for (const [name] of shots) fs.rmSync(path.join(out, name), { force: true });
 const start = Date.now();
 await run({ width: 1280, height: 720, hash: 'manual&tier=high&park=1' }, async ({ page }) => {
   console.log('warming renderer and vegetation buckets');
   await page.waitForTimeout(3000);
-  for (const [name, pos, target] of shots) {
+  for (const [name, subjectKind, pos, target] of shots) {
     console.log(`capturing ${name}`);
     const settled = await page.evaluate(([name, pos, target]) => {
       const g = window.__game;
@@ -48,7 +48,7 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high&park=1' }, async (
       new Promise((_, reject) => setTimeout(() =>
         reject(new Error(`capture timeout: ${name}`)), 300_000)),
     ]);
-    console.log(`captured ${name} in ${Date.now() - shotStart} ms camera=${actual.map(v => v.toFixed(3)).join(',')}`);
+    console.log(`captured ${name} in ${Date.now() - shotStart} ms camera=${actual.map(v => v.toFixed(3)).join(',')} subject=${subjectKind || 'valley'}`);
   }
 });
 for (const [name] of shots) {

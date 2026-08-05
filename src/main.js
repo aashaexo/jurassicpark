@@ -302,9 +302,9 @@ class Game {
     scene.add(this.jeep.root);
     if (this.parkCapture) {
       for (const [x, z, radius] of [
-        [7, -304, 10], [7, -280, 7], [7, -256, 6],
-        [-20, -326, 9], [-8, -296, 7],
-        [42, -300, 9], [13, -286, 6], [70, -360, 8],
+        [7, -304, 6], [7, -286, 3], [7, -270, 3],
+        [-20, -326, 4], [-8, -296, 3],
+        [42, -300, 3], [13, -286, 3], [70, -360, 3],
       ]) this.veg.suppressZone(x, z, radius);
     }
     if (this.dinoName || this.parkStudio || this.fenceStudio || this.jeepStudio) {
