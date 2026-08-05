@@ -5,8 +5,10 @@
   "consoleErrors": [],
   "info": {
     "fps": 10.000000000000002,
-    "calls": 287,
-    "triangles": 1035256
+    "calls": 785,
+    "triangles": 1445552,
+    "vegetationInstances": 37430,
+    "vegetationBuckets": 1275
   },
   "radiance": {
     "zenith": [
@@ -463,8 +465,10 @@
       "kind": "ground",
       "render": {
         "fps": 10.90909090909091,
-        "calls": 287,
-        "triangles": 1035256
+        "calls": 785,
+        "triangles": 1445552,
+        "vegetationInstances": 37430,
+        "vegetationBuckets": 1275
       }
     },
     {
@@ -483,8 +487,10 @@
       "kind": "overview",
       "render": {
         "fps": 10.000000000000002,
-        "calls": 291,
-        "triangles": 1066668
+        "calls": 790,
+        "triangles": 1479300,
+        "vegetationInstances": 37430,
+        "vegetationBuckets": 1275
       }
     },
     {
@@ -503,8 +509,10 @@
       "kind": "overview",
       "render": {
         "fps": 10.000000000000002,
-        "calls": 338,
-        "triangles": 1186276
+        "calls": 943,
+        "triangles": 1669810,
+        "vegetationInstances": 37430,
+        "vegetationBuckets": 1275
       }
     },
     {
@@ -523,13 +531,15 @@
       "kind": "ground",
       "render": {
         "fps": 10.000000000000002,
-        "calls": 287,
-        "triangles": 1035256
+        "calls": 785,
+        "triangles": 1445552,
+        "vegetationInstances": 37430,
+        "vegetationBuckets": 1275
       }
     }
   ],
   "perf": {
-    "fps": 0.5639521768554637,
-    "frameMs": 1773.199999999808
+    "fps": 0.5459558321731225,
+    "frameMs": 1831.6500000001834
   }
 }

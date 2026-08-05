@@ -155,3 +155,52 @@ without page errors and keep the sun above the horizon.
 - `media/hills-sky.png` — the hills remain visible behind the vegetation and
   the sky-to-ground transition is continuous; distant foliage is still too
   uniform compared with the reference.
+
+## Species turntables
+
+The `?species=<name>` harness renders a centered specimen and a wider patch
+under the real scene lighting. The current turntables are deliberately
+diagnostic rather than accepted photographic assets:
+
+- `media/species/canopy-close.png` / `canopy-patch.png` — layered crown cards
+  and trunk are visible, but the canopy still lacks branch-level irregularity.
+- `media/species/palm-close.png` / `palm-patch.png` — the bent frond fan reads
+  as a palm silhouette, though the fronds remain too broad and opaque.
+- `media/species/treefern-close.png` / `treefern-patch.png` — arching fronds
+  read as a tree fern, but the bipinnate leaf structure is not yet resolved.
+- `media/species/cycad-close.png` / `cycad-patch.png` — the squat trunk and
+  stiff radial fronds read as a cycad, but the foliage is still card-like.
+- `media/species/broadleaf-close.png` / `broadleaf-patch.png` — long petiole
+  sprays are present, but they do not yet resemble fenestrated monstera leaves.
+- `media/species/sapling-close.png` / `sapling-patch.png` — a small branched
+  silhouette is visible, with insufficient leaf age and color variation.
+- `media/species/fern-close.png` / `fern-patch.png` — the arching crown is
+  legible, but the cards still read as dark opaque strips rather than fronds.
+- `media/species/tussock-close.png` / `tussock-patch.png` — dense blades fill
+  the patch, but the silhouette remains too repetitive.
+- `media/species/shrub-close.png` / `shrub-patch.png` — layered shrub volume
+  is present, though it still inherits the generic card language.
+- `media/species/vine-close.png` / `vine-patch.png` — the hanging form is
+  visible, but the leaves need a dedicated heart/lanceolate recipe.
+- `media/species/litter-close.png` / `litter-patch.png` — low leaf litter
+  geometry is present and helps break the ground plane, but is too sparse.
+- `media/species/log-close.png` / `log-patch.png` — the log silhouette reads
+  clearly, but moss and bark breakup are still absent.
+
+## Current full-scene pass
+
+- `media/road-ground.png` — the road is less orange and no longer has white
+  gravel speckles, while the foreground is now layered with green plants;
+  however, the foliage still reads as repeated procedural cards rather than
+  photographic leaves.
+- `media/valley-overview.png` — the valley has dense green coverage and the
+  depth wedges remain absent; the ground is still too uniformly lit and the
+  canopy does not yet form convincing overhead occlusion.
+- `media/hills-sky.png` — the horizon is warmer and less lavender, but the
+  distant ridge remains stylized and the sky still needs a stronger pale-blue
+  to cream gradient.
+
+The latest deterministic beauty capture reports 37,430 vegetation instances,
+1,275 tile buckets, 785–943 render calls, and 1.45–1.67M triangles. The
+software-rendered headless performance sample is approximately 0.55 FPS, so
+bucket culling and reduced bucket count remain follow-up work.

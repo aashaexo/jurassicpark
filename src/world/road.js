@@ -68,10 +68,10 @@ export function createRoad(terrain, textures = null) {
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
   const material = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
+    color: 0x4f5146,
     roughness: 0.96,
     metalness: 0,
-    map: textures?.dirt?.map || null,
+    map: null,
     normalMap: textures?.dirt?.normalMap || null,
     normalScale: new THREE.Vector2(0.45, 0.45),
   });

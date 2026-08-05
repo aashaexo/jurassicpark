@@ -11,12 +11,12 @@ const MATERIALS = {
       float clump = fbm(uv * 15.0 + 8.0);
       float blades = blade(uv * 42.0);
       float dead = smoothstep(0.72, 0.9, noise2(uv * 11.0 + 18.0));
-      albedo = mix(vec3(0.006, 0.05, 0.004), vec3(0.025, 0.48, 0.012), macro);
-      albedo = mix(albedo, vec3(0.12, 0.17, 0.028), dead * 0.15);
+      albedo = mix(vec3(0.003, 0.026, 0.002), vec3(0.014, 0.24, 0.008), macro);
+      albedo = mix(albedo, vec3(0.09, 0.11, 0.025), dead * 0.22);
       albedo *= 0.76 + clump * 0.34 + blades * 0.14;
       height = macro * 0.06 + clump * 0.018 + blades * 0.045;
       roughness = 0.84 + clump * 0.12;
-      ao = 0.72 + macro * 0.18 + blades * 0.1;
+      ao = 0.64 + macro * 0.20 + blades * 0.08;
     }
   `,
   dirt: `

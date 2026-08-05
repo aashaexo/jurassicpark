@@ -38,6 +38,9 @@ const mode = new URLSearchParams(location.search).get('mode') || 'beauty';
 const params = new URLSearchParams(location.search);
 const gradeEnabled = params.get('grade') !== 'off';
 const roadEnabled = params.get('road') !== 'off';
+const speciesName = params.get('species');
+const speciesMode = Boolean(speciesName);
+const leafDebug = params.get('leafDebug');
 const tier = queryTier || (probe.maxTextureSize >= 8192 && window.devicePixelRatio <= 2 ? 'high' : 'medium');
 const quality = {
   low: { dpr: 1, shadows: 1024, fog: 0.0026 },
@@ -72,8 +75,37 @@ if (mode !== 'normal') {
 const textures = mode === 'normal' || mode === 'white' ? null : bakeGroundTextures(renderer, tier);
 const terrain = createTerrain(renderer, textures, mode);
 scene.add(terrain.group);
-if (mode !== 'normal' && roadEnabled) scene.add(createRoad(terrain, textures));
-const vegetation = mode === 'beauty' ? createVegetation(terrain, roadSample) : null;
+if (speciesMode) {
+  terrain.group.visible = false;
+  const patch = new THREE.Mesh(
+    new THREE.PlaneGeometry(36, 36),
+    new THREE.MeshStandardMaterial({ color: 0x66553b, roughness: 1 }),
+  );
+  patch.rotation.x = -Math.PI / 2;
+  patch.receiveShadow = true;
+  patch.visible = !leafDebug;
+  patch.name = 'species-turntable-ground';
+  scene.add(patch);
+}
+if (mode !== 'normal' && roadEnabled && !speciesMode) scene.add(createRoad(terrain, textures));
+const vegetationTerrain = speciesMode
+  ? { heightAt: () => 0 }
+  : terrain;
+const vegetationRoad = speciesMode
+  ? () => ({ distance: 999 })
+  : roadSample;
+const vegetation = speciesMode
+  ? createVegetation(vegetationTerrain, vegetationRoad, {
+    species: speciesName,
+    area: 15,
+    count: leafDebug ? 1 : 100,
+    center: true,
+    debugLeaf: Boolean(leafDebug),
+    debug: leafDebug,
+  })
+  : mode === 'beauty'
+    ? createVegetation(terrain, roadSample)
+    : null;
 if (vegetation) scene.add(vegetation);
 if (mode === 'sky') terrain.group.visible = false;
 
@@ -162,6 +194,15 @@ function animate() {
   sun.position.copy(player.position).addScaledVector(sky.sunDirection, 260);
   sun.target.position.copy(player.position);
   sun.target.updateMatrixWorld();
+  if (vegetation) {
+    vegetation.traverse((object) => {
+      const shader = object.material?.userData?.shader;
+      if (shader?.uniforms.uVegetationTime) {
+        shader.uniforms.uVegetationTime.value = performance.now() * 0.001;
+        shader.uniforms.uLeafSun.value.copy(sky.sunDirection);
+      }
+    });
+  }
   renderer.setRenderTarget(hdr);
   renderer.clear();
   renderer.render(scene, camera);

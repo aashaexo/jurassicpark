@@ -9,7 +9,9 @@
     "shoot": "node tools/shoot.mjs",
     "perf": "node tools/perf.mjs",
     "dump": "node tools/dump.mjs",
-    "isolate": "node tools/isolate.mjs"
+    "isolate": "node tools/isolate.mjs",
+    "species": "node tools/species.mjs",
+    "leaf-debug": "node tools/leaf-debug.mjs"
   },
   "dependencies": {
     "playwright": "^1.62.0"

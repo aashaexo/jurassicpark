@@ -64,8 +64,8 @@ void main() {
   // Daylight floor from the integrated solar spectrum. This keeps the
   // analytic sky in a photographic daytime range instead of near-black.
   float daylight = max(0.0, sun.y);
-  radiance += vec3(0.008, 0.28, 0.25) * (0.55 + 0.9 * max(view.y, 0.0));
-  radiance += vec3(0.13, 0.072, 0.028) * daylight * exp(-max(view.y, 0.0) * 5.0);
+  radiance += vec3(0.012, 0.16, 0.34) * (0.55 + 0.9 * max(view.y, 0.0));
+  radiance += vec3(0.18, 0.082, 0.024) * daylight * exp(-max(view.y, 0.0) * 5.0);
   float disc = smoothstep(0.996, 0.9998, mu);
   float limb = 1.0 - 0.32 * (1.0 - smoothstep(0.9997, 1.0, mu));
   radiance += vec3(4.8, 3.2, 1.3) * disc * limb;
@@ -74,7 +74,7 @@ void main() {
   cloudBand *= smoothstep(0.1, 0.48, view.y) * 0.32;
   radiance += vec3(0.19, 0.15, 0.1) * cloudBand;
   float haze = exp(-max(view.y, -0.05) * max(view.y, -0.05) * 26.0);
-  radiance += vec3(0.34, 0.25, 0.14) * haze * (1.0 + 0.7 * max(0.0, sun.y));
+  radiance += vec3(0.46, 0.31, 0.14) * haze * (1.0 + 0.7 * max(0.0, sun.y));
   gl_FragColor = vec4(max(radiance, vec3(0.0001)), 1.0);
 }
 `;
