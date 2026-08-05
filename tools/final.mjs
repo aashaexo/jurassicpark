@@ -18,17 +18,22 @@ const shots = [
 ];
 for (const [name] of shots) fs.rmSync(path.join(out, name), { force: true });
 const start = Date.now();
-await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page }) => {
+await run({ width: 1280, height: 720, hash: 'manual&tier=high&park=1' }, async ({ page }) => {
   for (const [name, pos, target] of shots) {
     console.log(`capturing ${name}`);
-    await page.evaluate(([pos, target]) => {
+    await page.evaluate(([name, pos, target]) => {
       const g = window.__game;
+      g.gate.root.visible = name.includes('gate');
+      g.fence.root.visible = name.includes('fence');
+      g.jeep.root.visible = name.includes('jeep');
+      g.dinosaurs.root.visible = !name.includes('gate') &&
+        !name.includes('fence') && !name.includes('jeep');
       const y = g.terrain.height(pos[0], pos[1]) + 1.7;
       const ty = g.terrain.height(target[0], target[1]) + 2.5;
       g.camera.position.set(pos[0], y, pos[1]);
       g.camera.lookAt(target[0], ty, target[1]);
       g.camera.updateMatrixWorld();
-    }, [pos, target]);
+    }, [name, pos, target]);
     await Promise.race([
       capture(page, path.join(out, name)),
       new Promise((_, reject) => setTimeout(() =>

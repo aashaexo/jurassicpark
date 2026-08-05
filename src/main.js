@@ -300,7 +300,12 @@ class Game {
     scene.add(this.fence.root);
     this.jeep = new SafariJeep(this.terrain);
     scene.add(this.jeep.root);
-    if (this.parkCapture) this.veg.suppressZone(7, -304, 10);
+    if (this.parkCapture) {
+      for (const [x, z, radius] of [
+        [7, -304, 10], [-20, -326, 9], [-8, -296, 7],
+        [42, -300, 9], [13, -286, 6], [70, -360, 8],
+      ]) this.veg.suppressZone(x, z, radius);
+    }
     if (this.dinoName || this.parkStudio || this.fenceStudio || this.jeepStudio) {
       this.terrain.group.visible = false;
       this.veg.root.visible = false;
