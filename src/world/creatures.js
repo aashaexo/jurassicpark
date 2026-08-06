@@ -538,7 +538,7 @@ export class DinosaurSystem {
       this.root.add(dino.group);
       this.creatures.push(dino);
     } else {
-      const spots = [[-20, -326], [2, -340], [24, -329]];
+      const spots = [[-22, -74], [-20, -326], [2, -340], [24, -329]];
       spots.forEach(([x, z], i) => {
         const dino = new CreatureRig('brachiosaurus', { seed: i + 1, terrain });
         dino.group.position.set(x, terrain.height(x, z), z);
@@ -555,7 +555,7 @@ export class DinosaurSystem {
       add('triceratops', -7, -304, 11, 1);
       for (let i = 0; i < 12; i++) {
         const a = i / 12 * Math.PI * 2;
-        add('gallimimus', 12 + Math.cos(a) * 8, -318 + Math.sin(a) * 7, 20 + i, 0.72);
+        add('gallimimus', 28 + Math.cos(a) * 4, -322 + Math.sin(a) * 4, 20 + i, 0.72);
       }
       for (const dino of this.creatures.filter(c => c.species === 'gallimimus')) {
         this.flockVelocity.set(dino, new THREE.Vector3(

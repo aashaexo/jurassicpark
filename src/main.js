@@ -304,7 +304,8 @@ class Game {
     scene.add(this.jeep.root);
     if (!this.dinoName && !this.parkStudio && !this.fenceStudio && !this.jeepStudio) {
       for (const [x, z, radius] of [
-        [2, -340, 7], [-7, -304, 5], [12, -318, 6], [8, -292, 5],
+        [-2, -58, 5], [-8, -68, 5], [-15, -78, 5],
+        [2, -340, 7], [-7, -304, 5], [10, -316, 5], [18, -319, 5], [28, -322, 5], [8, -292, 5],
       ]) this.veg.suppressZone(x, z, radius);
     }
     this.trailDressing = new THREE.Group();
