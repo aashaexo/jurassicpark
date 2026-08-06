@@ -33,14 +33,14 @@ await run({
     const aspect = innerWidth / innerHeight;
     const vHalf = fov * 0.5;
     const hHalf = Math.atan(Math.tan(vHalf) * aspect);
-    const visibleWidth = mode === 'side' ? size.z : size.x;
+    const visibleWidth = Math.max(size.x, size.z);
     const distance = Math.max(
       size.y / (2 * Math.tan(vHalf)),
       visibleWidth / (2 * Math.tan(hHalf)),
     ) * (g.dinosaurs.creatures[0].species === 'trex' ? 3.2 : 2.0);
     let offset;
     if (mode === 'side') offset = center.clone().set(distance, 0, 0);
-    else if (mode === 'front') offset = center.clone().set(-distance * 0.68, 0, -distance * 0.74);
+    else if (mode === 'front') offset = center.clone().set(-distance * 0.68, 0, distance * 0.74);
     else offset = center.clone().set(distance * 0.72, -distance * 0.22, distance * 0.68);
     offset.y = 0;
     if (mode === 'low') offset.y = -distance * 0.22;

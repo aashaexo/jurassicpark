@@ -218,9 +218,9 @@ export class CreatureRig {
         }),
       );
       this.frill.name = 'dilophosaurus-erectile-frill';
-      this.frill.position.set(0, 3.85, 1.95);
+      this.frill.position.set(0, 3.72, 2.42);
       this.frill.rotation.x = Math.PI * 0.5;
-      this.frill.scale.set(0.12, 1, 1);
+      this.frill.scale.set(0.7, 0.9, 1);
       this.group.add(this.frill);
     }
     this._groundY = 0;
@@ -242,11 +242,11 @@ export class CreatureRig {
     if (species === 'triceratops') {
       volumes.push(E([0, 3.4, 0], [2.25, 2.0, 3.1], 0.6));
       volumes.push(E([0, 3.8, 3.0], [1.55, 1.5, 1.5], 0.4));
-      volumes.push(E([0, 4.4, 4.0], [1.45, 1.25, 1.3], 0.3));
-      volumes.push(E([0, 4.4, 4.65], [1.1, 0.9, 0.22], 0.22));
-      volumes.push(C([0, 4.35, 4.35], [0, 4.4, 4.65], 0.42, 0.22, 0.18));
-      volumes.push(C([-0.45, 4.8, 4.5], [-0.65, 4.85, 5.9], 0.22, 0.1, 0.12));
-      volumes.push(C([0.45, 4.8, 4.5], [0.65, 4.85, 5.9], 0.22, 0.1, 0.12));
+      volumes.push(E([0, 4.4, 4.0], [1.55, 1.3, 1.3], 0.3));
+      volumes.push(E([0, 4.48, 4.5], [1.75, 1.45, 0.3], 0.22));
+      volumes.push(C([0, 4.35, 4.35], [0, 4.4, 4.78], 0.48, 0.24, 0.18));
+      volumes.push(C([-0.55, 4.82, 4.6], [-0.78, 4.9, 6.2], 0.3, 0.13, 0.12));
+      volumes.push(C([0.55, 4.82, 4.6], [0.78, 4.9, 6.2], 0.3, 0.13, 0.12));
       volumes.push(C([0, 4.35, 4.9], [0, 4.2, 5.7], 0.18, 0.08, 0.1));
       for (const x of [-1.25, 1.25]) for (const z of [-1.8, 1.7])
         volumes.push(C([x, 3.1, z], [x * 0.95, 0.65, z], 0.62, 0.38, 0.25));
@@ -260,13 +260,38 @@ export class CreatureRig {
         volumes.push(C([x * 1.1, 0.45, 0.2], [x * 1.3, 0.12, -0.15], 0.12, 0.06, 0.1));
       }
     } else if (species === 'dilophosaurus') {
-      volumes.push(E([0, 2.5, 0], [0.8, 1.0, 1.35], 0.3));
-      volumes.push(C([0, 2.8, 0.8], [0, 4.0, 1.9], 0.38, 0.2, 0.2));
-      volumes.push(E([0, 4.2, 2.2], [0.55, 0.5, 0.85], 0.18));
-      volumes.push(E([0, 4.55, 1.95], [0.65, 0.55, 0.18], 0.12));
-      for (const side of [-1, 1]) volumes.push(E([side * 0.38, 4.7, 2.15], [0.22, 0.65, 0.3], 0.12));
-      volumes.push(C([0, 2.3, -0.8], [0, 2.0, -3.5], 0.32, 0.08, 0.16));
-      for (const x of [-0.5, 0.5]) volumes.push(C([x, 2.0, 0.2], [x * 1.15, 0.3, -0.1], 0.2, 0.1, 0.15));
+      /* A low, long-bodied theropod: the tail and neck carry the silhouette
+       * horizontally so the head cannot collapse into a cat-like stack above
+       * the barrel. The positive Z end is the snout. */
+      volumes.push(E([0, 2.35, 0], [0.82, 0.82, 1.55], 0.3));
+      volumes.push(E([0, 2.55, 1.05], [0.72, 0.68, 0.72], 0.24));
+      volumes.push(C([0, 2.55, 0.85], [0, 3.05, 1.75], 0.34, 0.24, 0.16));
+      volumes.push(C([0, 3.0, 1.7], [0, 3.65, 2.35], 0.25, 0.16, 0.14));
+      volumes.push(C([0, 3.6, 2.3], [0, 3.9, 2.85], 0.17, 0.12, 0.1));
+      volumes.push(E([0, 3.95, 3.05], [0.42, 0.34, 0.72], 0.14));
+      volumes.push(C([0, 3.92, 3.45], [0, 3.85, 4.15], 0.28, 0.13, 0.1));
+      volumes.push(C([0, 3.78, 3.35], [0, 3.72, 4.0], 0.18, 0.08, 0.08));
+      /* Twin crests are thin fore-aft blades on the skull, not vertical ears. */
+      for (const side of [-1, 1]) {
+        volumes.push(C([side * 0.18, 4.25, 2.72], [side * 0.18, 4.35, 3.55],
+          0.11, 0.045, 0.06));
+      }
+      volumes.push(C([0, 2.25, -0.75], [0, 2.15, -3.5], 0.3, 0.15, 0.14));
+      volumes.push(C([0, 2.15, -3.5], [0, 2.05, -5.8], 0.15, 0.035, 0.1));
+      for (const side of [-1, 1]) {
+        /* Digitigrade hindlimbs with a raised ankle and forward foot. */
+        volumes.push(C([side * 0.58, 2.25, -0.35], [side * 0.62, 1.15, -0.05],
+          0.25, 0.16, 0.12));
+        volumes.push(C([side * 0.62, 1.15, -0.05], [side * 0.66, 0.38, 0.42],
+          0.16, 0.1, 0.1));
+        volumes.push(C([side * 0.66, 0.38, 0.42], [side * 0.66, 0.2, 0.95],
+          0.1, 0.055, 0.06));
+        /* Small folded forelimbs tucked beneath the shoulder. */
+        volumes.push(C([side * 0.52, 2.75, 0.85], [side * 0.72, 2.15, 1.15],
+          0.13, 0.09, 0.08));
+        volumes.push(C([side * 0.72, 2.15, 1.15], [side * 0.62, 1.95, 1.45],
+          0.09, 0.045, 0.06));
+      }
     } else {
       volumes.push(E([0, 3.40, -0.20], [0.85, 1.15, 2.00], 0.50));
       volumes.push(E([0, 3.30, 1.30], [0.90, 1.00, 1.20], 0.50));
@@ -551,6 +576,7 @@ export class DinosaurSystem {
         dino.group.position.set(x, terrain.height(x, z), z);
         this.root.add(dino.group);
         this.creatures.push(dino);
+        return dino;
       };
       add('triceratops', 5, -298, 11, 1);
       for (let i = 0; i < 12; i++) {
@@ -561,8 +587,9 @@ export class DinosaurSystem {
         this.flockVelocity.set(dino, new THREE.Vector3(
           Math.sin(dino.seed) * 0.4, 0, -0.75 + Math.cos(dino.seed * 0.7) * 0.15));
       }
-      add('dilophosaurus', 8, -292, 41, 1);
-      add('dilophosaurus', 4, -260, 42, 1.1);
+      const closeDilo = add('dilophosaurus', 8, -292, 41, 1);
+      closeDilo.group.rotation.y = -0.45;
+      add('dilophosaurus', 4, -260, 42, 1.2);
       add('trex', 70, -360, 51, 1);
       console.info('[dinosaurs] polygonisation', Object.fromEntries(
         [...POLYGONIZE_COUNTS].map(([species, count]) => [species, {
