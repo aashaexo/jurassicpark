@@ -538,9 +538,9 @@ export class DinosaurSystem {
       this.root.add(dino.group);
       this.creatures.push(dino);
     } else {
-      const spots = [[-22, -74], [-20, -326], [2, -340], [24, -329]];
-      spots.forEach(([x, z], i) => {
-        const dino = new CreatureRig('brachiosaurus', { seed: i + 1, terrain });
+      const spots = [[-18, -70, 1.2], [-20, -326, 1], [-12, -340, 1], [24, -329, 1]];
+      spots.forEach(([x, z, scale], i) => {
+        const dino = new CreatureRig('brachiosaurus', { seed: i + 1, scale, terrain });
         dino.group.position.set(x, terrain.height(x, z), z);
         dino.group.rotation.y = i * 0.35;
         this.root.add(dino.group);
@@ -552,7 +552,7 @@ export class DinosaurSystem {
         this.root.add(dino.group);
         this.creatures.push(dino);
       };
-      add('triceratops', -7, -304, 11, 1);
+      add('triceratops', 5, -298, 11, 1);
       for (let i = 0; i < 12; i++) {
         const a = i / 12 * Math.PI * 2;
         add('gallimimus', 28 + Math.cos(a) * 4, -322 + Math.sin(a) * 4, 20 + i, 0.72);
@@ -561,7 +561,8 @@ export class DinosaurSystem {
         this.flockVelocity.set(dino, new THREE.Vector3(
           Math.sin(dino.seed) * 0.4, 0, -0.75 + Math.cos(dino.seed * 0.7) * 0.15));
       }
-      add('dilophosaurus', 8, -292, 41, 0.7);
+      add('dilophosaurus', 8, -292, 41, 1);
+      add('dilophosaurus', 4, -260, 42, 1);
       add('trex', 70, -360, 51, 1);
       console.info('[dinosaurs] polygonisation', Object.fromEntries(
         [...POLYGONIZE_COUNTS].map(([species, count]) => [species, {
