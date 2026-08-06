@@ -302,6 +302,11 @@ class Game {
     scene.add(this.fence.root);
     this.jeep = new SafariJeep(this.terrain);
     scene.add(this.jeep.root);
+    if (!this.dinoName && !this.parkStudio && !this.fenceStudio && !this.jeepStudio) {
+      for (const [x, z, radius] of [
+        [2, -340, 7], [-7, -304, 5], [12, -318, 6], [8, -292, 5],
+      ]) this.veg.suppressZone(x, z, radius);
+    }
     this.trailDressing = new THREE.Group();
     this.trailDressing.name = 'trail-dressing';
     const wood = new THREE.MeshStandardMaterial({ color: 0x5a3927, roughness: 0.95 });
