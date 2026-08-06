@@ -48,10 +48,20 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
     await page.evaluate(() => {
       const g = window.__game;
       g.dinosaurs.root.visible = false;
+      g.veg.root.visible = false;
+      g.renderer.render(g.scene, g.camera);
+    });
+    const vegetationHidden = readPngBuffer(await page.screenshot());
+    await page.evaluate(() => {
+      const g = window.__game;
+      g.veg.root.visible = true;
+      g.dinosaurs.root.visible = false;
       g.dinosaurs.root.updateMatrixWorld(true);
       g.renderer.render(g.scene, g.camera);
     });
-    const base = readPngBuffer(await page.screenshot());
+    const vegetationShown = readPngBuffer(await page.screenshot());
+    const vegetationDiff = diffFraction(vegetationShown, vegetationHidden);
+    const base = vegetationShown;
     const species = [...new Set(info.values.map(v => v.species))];
     const pixelDiff = {};
     for (const kind of species) {
@@ -81,7 +91,7 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
       }];
     }));
     console.log(`${name}: ${JSON.stringify({
-      camera: info.camera, forward: info.forward, dinosaurs,
+      camera: info.camera, forward: info.forward, vegetationDiff, dinosaurs,
     })}`);
   }
 });

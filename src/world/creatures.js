@@ -562,7 +562,7 @@ export class DinosaurSystem {
           Math.sin(dino.seed) * 0.4, 0, -0.75 + Math.cos(dino.seed * 0.7) * 0.15));
       }
       add('dilophosaurus', 8, -292, 41, 1);
-      add('dilophosaurus', 4, -260, 42, 1);
+      add('dilophosaurus', 4, -260, 42, 1.1);
       add('trex', 70, -360, 51, 1);
       console.info('[dinosaurs] polygonisation', Object.fromEntries(
         [...POLYGONIZE_COUNTS].map(([species, count]) => [species, {

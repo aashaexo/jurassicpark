@@ -1531,6 +1531,7 @@ export class Vegetation {
       this.cells.push({
         group, hi: hiG, lo: loG,
         x: (b.ti + 0.5) * tile, z: (b.tj + 0.5) * tile, cull, near,
+        species: name,
         items: b.items,
       });
     }
@@ -1592,9 +1593,10 @@ export class Vegetation {
     }
   }
 
-  suppressZone(x, z, radius) {
+  suppressZone(x, z, radius, species = null) {
     const r2 = radius * radius;
     for (const cell of this.cells) {
+      if (species && !species.includes(cell.species)) continue;
       const hidden = new Set();
       cell.items.forEach((it, i) => {
         const p = it.m.elements;

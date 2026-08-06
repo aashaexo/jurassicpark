@@ -303,26 +303,26 @@ class Game {
     this.jeep = new SafariJeep(this.terrain);
     scene.add(this.jeep.root);
     if (!this.dinoName && !this.parkStudio && !this.fenceStudio && !this.jeepStudio) {
+      const canopySightline = ['tree', 'canopy', 'canopy2', 'subcanopy', 'palm', 'sapling', 'vine'];
       const clearCorridor = (points, radius) => {
-        for (const [x, z] of points) this.veg.suppressZone(x, z, radius);
+        for (const [x, z] of points) this.veg.suppressZone(x, z, radius, canopySightline);
       };
-      /* These are park-like light gaps rather than a global vegetation
-       * disable: the trail skirts each one, with intact jungle at the edges.
-       * Repeating narrow per-instance discs along the viewing ray also removes
-       * tall canopy trees, not only the low ferns near the subject. */
+      /* Open only the tall sightline plants. Ground cover, ferns, broadleaf
+       * plants and litter remain in the foreground so every encounter still
+       * reads as rainforest rather than a cleared lot. */
       clearCorridor([
         [-2, -44], [-7, -53], [-12, -62], [-18, -70],
-      ], 28);
+      ], 7);
       clearCorridor([
         [11, -281], [8, -289], [5, -298],
-      ], 24);
+      ], 6);
       clearCorridor([
         [4, -315], [-2, -327], [-12, -340],
         [10, -318], [19, -320], [28, -322],
-      ], 15);
+      ], 6);
       clearCorridor([
         [-0, -247], [2, -254], [4, -260],
-      ], 16);
+      ], 6);
     }
     this.trailDressing = new THREE.Group();
     this.trailDressing.name = 'trail-dressing';
