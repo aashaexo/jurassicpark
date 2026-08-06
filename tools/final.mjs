@@ -38,11 +38,18 @@ await run({ width: 1280, height: 720, hash: 'manual&tier=high' }, async ({ page 
       g.jeep.root.visible = subjectKind === 'jeep';
       g.dinosaurs.root.visible = subjectKind !== 'gate' &&
         subjectKind !== 'fence' && subjectKind !== 'jeep';
+      const speciesCreatures = subjectKind === 'brachiosaurus' ?
+        g.dinosaurs.creatures.filter(c => c.species === subjectKind) : [];
       const subject = subjectKind === 'gate' ? g.gate.root :
         subjectKind === 'fence' ? g.fence.root :
           subjectKind === 'jeep' ? g.jeep.root :
             subjectKind === 'gallimimus' ? g.dinosaurs.root :
-            g.dinosaurs.creatures.find(c => c.species === subjectKind)?.group;
+            speciesCreatures.length ?
+              speciesCreatures
+                .map(c => ({ c, d: c.group.position.distanceTo(
+                  new T.Vector3(target[0], 0, target[1])) }))
+                .sort((a, b) => a.d - b.d)[0].c.group :
+              g.dinosaurs.creatures.find(c => c.species === subjectKind)?.group;
       if (!subjectKind) {
         const y = g.terrain.height(pos[0], pos[1]) + 1.7;
         const ty = g.terrain.height(target[0], target[1]) + 2.5;
