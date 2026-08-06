@@ -579,9 +579,9 @@ The current cached implicit species meshes validate as follows:
 
 | Species | Triangles | Boundary | Non-manifold | Degenerate | Non-finite | Orientation flips |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Triceratops | 14,468 | 0 | 0 | 0 | 0 | 0 |
+| Triceratops | 8,442 | 0 | 0 | 0 | 0 | 2 |
 | Gallimimus | 3,346 | 0 | 0 | 0 | 0 | 2 |
-| Dilophosaurus | 2,992 | 0 | 0 | 0 | 0 | 1 |
+| Dilophosaurus | 3,058 | 0 | 0 | 0 | 0 | 30 |
 | T-Rex | 6,022 | 0 | 0 | 0 | 0 | 4 |
 
 The species are now placed in the world and share the geometry cache. The
@@ -609,7 +609,47 @@ npm run dump                — 131,434 vegetation instances, 61,698,544 vegetat
 normal-run probe            — avg renderOnce 14.6 ms, max 30.8 ms, zero captured console errors
 ```
 
-Known weaknesses remain: the three non-zero orientation-flip counts above have
-not been eliminated, and the tan studio sliver has not been conclusively
-isolated. These claims describe implementation and harness results only; they
-are not visual acceptance.
+Known weaknesses remain: the non-zero orientation-flip counts above have not
+been eliminated, and the tan studio sliver has not been conclusively isolated.
+These claims describe implementation and harness results only; they are not
+visual acceptance.
+
+## Normal gameplay visibility pass
+
+The first implementation placed all dinosaur encounters near the final capture
+zone, so normal play from the trailhead did not reveal dinosaurs for a long
+stretch. The route was reworked with gameplay-facing encounters and a
+pixel-diff probe (`tools/gameplay-probe.mjs`) that renders each sampled route
+frame with and without dinosaurs, then with and without vegetation. This avoids
+trusting projected bounding boxes when foliage fully occludes an animal.
+
+The normal route now has three verified dinosaur encounters while preserving
+rainforest density in the same frames:
+
+| Route sample | Vegetation pixels | Dinosaur evidence |
+| --- | ---: | --- |
+| `t-0.18` | 64.02% | Brachiosaurus 2.98% pixel diff |
+| `t-0.66` | 56.02% | Dilophosaurus 2.57% pixel diff |
+| `t-0.74` | 42.09% | Triceratops 3.75%, Dilophosaurus 2.41% pixel diff |
+
+Fresh route screenshots are in `shots/gameplay/route/`. The Brachiosaurus is
+visible early on the trail through a narrow canopy sightline, and the later
+Dilophosaurus/Triceratops encounters retain near-field foliage, understory and
+jungle walls. Gameplay clearings suppress only tall sightline species, leaving
+ground cover, broadleaf plants, ferns and litter intact.
+
+The Dilophosaurus was reshaped after visual inspection because the first close
+encounter read like a house cat. Its current procedural volume list uses a
+longer low body, horizontal tail, S-curved neck, elongated snout, fore-aft crest
+blades, small forelimbs and digitigrade hindlimbs. Triceratops frill and brow
+horn volumes were also strengthened for the gate encounter.
+
+Fresh verification after this gameplay pass:
+
+```text
+node tools/gameplay-probe.mjs  — route pixel-diff visibility/vegetation probe passed
+node --check changed JS/MJS    — passed
+git diff --check               — passed
+npm run dino-world             — 20 instances, 22 meshes, 91,980 dinosaur triangles, 15 cache hits
+npm run dump                   — 131,434 vegetation instances, 61,698,544 vegetation tris, ok: true
+```
