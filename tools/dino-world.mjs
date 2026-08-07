@@ -14,6 +14,7 @@ await run({ width: 1600, height: 900, hash: 'manual&tier=high' }, async ({ page 
     g.camera.updateMatrixWorld();
   });
   await capture(page, out);
+  console.log(`dino stats: ${JSON.stringify(await page.evaluate(() => window.__game.dinosaurs.stats()))}`);
   console.log(`→ ${out}`);
 });
 finish(process.exitCode || 0);

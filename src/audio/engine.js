@@ -591,6 +591,37 @@ export class Ambience {
     osc.stop(now + 1.9);
   }
 
+  triggerFenceHum(level = 0) {
+    if (!this.ready || !this.ctx || level <= 0.01) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 92;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.018 * level, now + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+    osc.connect(gain).connect(this.master);
+    osc.start(now);
+    osc.stop(now + 0.2);
+  }
+
+  triggerDinoRoar(pos, strength = 1) {
+    if (!this.ready || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(72, now);
+    osc.frequency.exponentialRampToValueAtTime(34, now + 1.6);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.04 * strength, now + 0.18);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.8);
+    osc.connect(gain).connect(this.master);
+    osc.start(now);
+    osc.stop(now + 1.9);
+  }
+
   setPaused(paused) {
     if (!this.ready) return;
     if (paused && this.ctx.state === 'running' && this.ctx.suspend) this.ctx.suspend();

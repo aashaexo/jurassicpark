@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { run, capture } from './harness.mjs';
 import { finish } from './tame.mjs';
+import { assertCaptureCoverage } from './assert-capture.mjs';
 
 const name = process.argv[2] || 'brachiosaurus';
 const debug = process.argv[3] === 'normal';
@@ -22,8 +23,44 @@ await run({
       }
     }, expected);
   };
+  const studioCamera = async (mode) => page.evaluate((mode) => {
+    const g = window.__game;
+    const mesh = g.dinosaurs.creatures[0].mesh;
+    const box = mesh.geometry.boundingBox.clone().applyMatrix4(mesh.matrixWorld);
+    const center = box.getCenter(g.camera.position.clone());
+    const size = box.getSize(g.camera.position.clone());
+    const fov = g.camera.fov * Math.PI / 180;
+    const aspect = innerWidth / innerHeight;
+    const vHalf = fov * 0.5;
+    const hHalf = Math.atan(Math.tan(vHalf) * aspect);
+    const visibleWidth = Math.max(size.x, size.z);
+    const distance = Math.max(
+      size.y / (2 * Math.tan(vHalf)),
+      visibleWidth / (2 * Math.tan(hHalf)),
+    ) * (g.dinosaurs.creatures[0].species === 'trex' ? 3.2 : 2.0);
+    let offset;
+    if (mode === 'side') offset = center.clone().set(distance, 0, 0);
+    else if (mode === 'front') offset = center.clone().set(-distance * 0.68, 0, distance * 0.74);
+    else offset = center.clone().set(distance * 0.72, -distance * 0.22, distance * 0.68);
+    offset.y = 0;
+    if (mode === 'low') offset.y = -distance * 0.22;
+    g.camera.position.copy(center).add(offset);
+    g.camera.lookAt(center);
+    g.camera.updateMatrixWorld();
+    g.setPaused(true);
+    g.renderOnce();
+  }, mode);
+  await page.evaluate(() => {
+    const g = window.__game;
+    const mesh = g.dinosaurs.creatures[0].mesh;
+    mesh.geometry.computeBoundingBox();
+    const ground = g.scene.getObjectByName('dinosaur-turntable-ground');
+    const delta = Math.abs(ground.position.y - mesh.geometry.boundingBox.min.y);
+    if (delta >= 0.01) throw new Error(`studio ground mismatch: ${delta}`);
+  });
   await assertMode(debug);
   const frames = [];
+  const coverage = {};
   if (debug) {
     await page.evaluate(() => {
       const g = window.__game;
@@ -36,31 +73,21 @@ await run({
     await capture(page, path.join(out, 'normal-debug.png'));
   } else {
   const poses = [
-    ['side.png', [7, 4.8, 9], [0, 5.1, 0]],
-    ['three-quarter-front.png', [-8, 5.4, 8], [0, 5.2, 0]],
-    ['low-hero.png', [6, 2.4, 8], [0, 6.5, -1]],
+    ['side.png', 'side'],
+    ['three-quarter-front.png', 'front'],
+    ['low-hero.png', 'low'],
   ];
-  for (const [file, position, target] of poses) {
+  for (const [file, mode] of poses) {
     await assertMode(false);
-    await page.evaluate(([position, target]) => {
-      const g = window.__game;
-      g.camera.position.set(...position);
-      g.camera.lookAt(...target);
-      g.camera.updateMatrixWorld();
-      g.setPaused(true);
-      g.renderOnce();
-    }, [position, target]);
+    await studioCamera(mode);
+    coverage[file] = await assertCaptureCoverage(page, 'dino', {
+      contain: mode === 'side' || mode === 'front',
+      minCoverage: mode === 'side' || mode === 'front' ? 0.02 : 0.05,
+    });
     await capture(page, path.join(out, file));
   }
-  await page.evaluate(() => {
-    const g = window.__game;
-    g.camera.position.set(7, 4.8, 9);
-    g.camera.lookAt(0, 5.1, 0);
-    g.camera.updateMatrixWorld();
-    g.setPaused(true);
-    g.renderOnce();
-  });
-  await capture(page, path.join(out, debug ? 'normal-debug.png' : 'turntable.png'));
+  await studioCamera('side');
+  await capture(page, path.join(out, 'turntable.png'));
 
   for (let i = 0; i < 8; i++) {
     await assertMode(false);
@@ -70,10 +97,6 @@ await run({
       g.dinosaurs.creatures[0].speed = 0.8;
       g.dinosaurs.creatures[0].update(0.18, { walk: true });
       g.setPaused(true);
-      g.camera.position.set(6.5, 4.5, 8);
-      g.camera.lookAt(0, 4.9, 0);
-      g.camera.updateMatrixWorld();
-      g.renderOnce();
     }, i);
     const file = path.join(out, `walk-${String(i).padStart(2, '0')}.png`);
     await capture(page, file);
@@ -83,6 +106,8 @@ await run({
   const stats = await page.evaluate(() => ({
     dino: window.__game.dinosaurs.stats(),
     render: window.__game.info(),
+    validation: window.__game.dinosaurs.creatures[0].mesh.geometry.userData.validate(),
+    skinShader: window.__game.dinosaurs.creatures[0].material.userData,
     normal: (() => {
       const a = window.__game.dinosaurs.creatures[0].mesh.geometry.attributes.normal.array;
       let nan = 0, min = Infinity, max = -Infinity;
@@ -99,8 +124,12 @@ await run({
       };
     })(),
   }));
+  const v = stats.validation;
+  if (v.disagreement || v.boundary || v.nonManifold || v.degenerate || v.nonFinite) {
+    throw new Error(`invalid creature mesh: ${JSON.stringify(v)}`);
+  }
   fs.writeFileSync(path.join(out, debug ? 'normal-report.json' : 'report.json'), JSON.stringify({
-    species: name, debugNormals: debug, frames, stats, errors: errs,
+    species: name, debugNormals: debug, frames, coverage, stats, errors: errs,
   }, null, 2));
 });
 finish(process.exitCode || 0);

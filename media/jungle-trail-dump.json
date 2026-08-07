@@ -48,6 +48,40 @@
       "instances": 131434,
       "tris": 61698544
     },
+    "dinosaurs": {
+      "meshes": 22,
+      "triangles": 91980,
+      "instances": 20,
+      "polygonizeMs": 463.9999999962747,
+      "cached": 15,
+      "bySpecies": {
+        "brachiosaurus": {
+          "instances": 4,
+          "ms": 252.60000000149012,
+          "cached": 3
+        },
+        "triceratops": {
+          "instances": 1,
+          "ms": 92,
+          "cached": 0
+        },
+        "gallimimus": {
+          "instances": 12,
+          "ms": 22.799999997019768,
+          "cached": 11
+        },
+        "dilophosaurus": {
+          "instances": 2,
+          "ms": 45.099999997764826,
+          "cached": 1
+        },
+        "trex": {
+          "instances": 1,
+          "ms": 51.5,
+          "cached": 0
+        }
+      }
+    },
     "body": {
       "meshes": 11,
       "firstPersonDraws": 5,

@@ -8,6 +8,10 @@
 import * as THREE from 'three';
 import { polygonizeVolumes } from './metaball.js';
 
+const GEOMETRY_CACHE = new Map();
+const POLYGONIZE_COUNTS = new Map();
+const POLYGONIZE_TIMES = new Map();
+
 const TAU = Math.PI * 2;
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -18,14 +22,17 @@ function skinTexture(seed = 1) {
     for (let x = 0; x < size; x++) {
       const p = Math.sin((x + seed * 19) * 0.075) *
         Math.sin((y - seed * 13) * 0.091) +
-        0.3 * Math.sin((x + y) * 0.43 + seed);
-      const scale = 0.82 + 0.12 * p;
+        0.08 * Math.sin((x + y) * 0.43 + seed) +
+        0.22 * Math.sin((x * 1.7 - y * 1.25) * 0.19 + seed * 2.1) +
+        0.16 * Math.sin((x * 3.7 + y * 2.1) * 0.11 + seed * 4.7) +
+        0.11 * Math.sin((x * x * 0.013 + y * 1.9) + seed * 3.4);
+      const scale = 0.56 + 0.46 * p;
       const belly = y / size;
-      const dorsal = 1 - belly * 0.20;
+      const dorsal = 0.72 + belly * 0.38;
       const i = (y * size + x) * 4;
-      data[i] = clamp(155 * scale * dorsal, 0, 255);
-      data[i + 1] = clamp(142 * scale * dorsal + belly * 12, 0, 255);
-      data[i + 2] = clamp(94 * scale * dorsal + belly * 14, 0, 255);
+      data[i] = clamp(128 * scale * dorsal + belly * 34, 0, 255);
+      data[i + 1] = clamp(116 * scale * dorsal + belly * 42, 0, 255);
+      data[i + 2] = clamp(72 * scale * dorsal + belly * 36, 0, 255);
       data[i + 3] = 255;
     }
   }
@@ -57,25 +64,35 @@ function materialFor(seed, debugNormals = false) {
   });
   material.onBeforeCompile = shader => {
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vCreatureWorld;')
-      .replace('#include <begin_vertex>',
-        '#include <begin_vertex>\nvCreatureWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      .replace('#include <common>',
+        '#include <common>\nvarying vec3 vCreatureWorld;\nvarying vec3 vCreatureNormalWorld;')
+      .replace('#include <worldpos_vertex>',
+        '#include <worldpos_vertex>\nvCreatureWorld = worldPosition.xyz;')
+      .replace('#include <defaultnormal_vertex>',
+        '#include <defaultnormal_vertex>\nvCreatureNormalWorld = normalize(mat3(modelMatrix) * transformedNormal);');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vCreatureWorld;')
+      .replace('#include <common>',
+        '#include <common>\nvarying vec3 vCreatureWorld;\nvarying vec3 vCreatureNormalWorld;')
       .replace('#include <map_fragment>', `
-        vec3 creatureN = abs(normalize(vNormal));
+        vec3 creatureN = abs(normalize(vCreatureNormalWorld));
         creatureN /= max(0.001, creatureN.x + creatureN.y + creatureN.z);
-        vec3 creatureMap = texture2D(map, vCreatureWorld.yz * 0.09).rgb * creatureN.x
-          + texture2D(map, vCreatureWorld.xz * 0.09).rgb * creatureN.y
-          + texture2D(map, vCreatureWorld.xy * 0.09).rgb * creatureN.z;
+        vec3 creatureMap = texture2D(map, vCreatureWorld.yz * 0.13).rgb * creatureN.x
+          + texture2D(map, vCreatureWorld.xz * 0.13).rgb * creatureN.y
+          + texture2D(map, vCreatureWorld.xy * 0.13).rgb * creatureN.z;
         diffuseColor *= vec4(creatureMap * 1.25, 1.0);
       `);
+    if (!material.userData.shaderLogged) {
+      material.userData.shaderLogged = true;
+      material.userData.shaderHasTriplanar = shader.fragmentShader.includes('creatureMap');
+      material.userData.shaderHasWorldNormal = shader.fragmentShader.includes('vCreatureNormalWorld');
+      material.userData.shaderFragmentLength = shader.fragmentShader.length;
+      console.info('[dino-skin] triplanar shader compiled',
+        material.userData.shaderHasWorldNormal,
+        material.userData.shaderHasTriplanar);
+    }
   };
   material.customProgramCacheKey = () => 'dino-skin-triplanar-v4';
-  material.userData.skipCanopy = true;
   material.side = THREE.FrontSide;
-  material.customProgramCacheKey = () =>
-    debugNormals ? 'creature-normal-debug-v1' : 'creature-triplanar-v2';
   return material;
 }
 
@@ -191,8 +208,145 @@ export class CreatureRig {
     this.group.scale.setScalar(scale);
     this.material = materialFor(seed, debugNormals);
     this.bones = {};
-    this._buildImplicitBrachiosaurus();
+    if (species === 'brachiosaurus') this._buildImplicitBrachiosaurus();
+    else this._buildImplicitSpecies(species);
+    if (species === 'dilophosaurus') {
+      this.frill = new THREE.Mesh(
+        new THREE.CircleGeometry(0.9, 16),
+        new THREE.MeshStandardMaterial({
+          color: 0x8b4a32, roughness: 0.85, side: THREE.DoubleSide,
+        }),
+      );
+      this.frill.name = 'dilophosaurus-erectile-frill';
+      this.frill.position.set(0, 3.72, 2.42);
+      this.frill.rotation.x = Math.PI * 0.5;
+      this.frill.scale.set(0.7, 0.9, 1);
+      this.group.add(this.frill);
+    }
     this._groundY = 0;
+  }
+
+  _buildImplicitSpecies(species) {
+    const root = bone(this.group, 'root', new THREE.Vector3());
+    this.bones.root = root;
+    this.bones.spine = [root];
+    this.bones.head = root;
+    this.bones.legs = [];
+    const E = (center, radius, blend = 0.25) =>
+      ({ type: 'ellipsoid', center: new THREE.Vector3(...center),
+        radius: new THREE.Vector3(...radius), blend });
+    const C = (a, b, ra, rb = ra, blend = 0.25) =>
+      ({ type: 'capsule', a: new THREE.Vector3(...a), b: new THREE.Vector3(...b),
+        ra, rb, blend });
+    const volumes = [];
+    if (species === 'triceratops') {
+      volumes.push(E([0, 3.4, 0], [2.25, 2.0, 3.1], 0.6));
+      volumes.push(E([0, 3.8, 3.0], [1.55, 1.5, 1.5], 0.4));
+      volumes.push(E([0, 4.4, 4.0], [1.55, 1.3, 1.3], 0.3));
+      volumes.push(E([0, 4.48, 4.5], [1.75, 1.45, 0.3], 0.22));
+      volumes.push(C([0, 4.35, 4.35], [0, 4.4, 4.78], 0.48, 0.24, 0.18));
+      volumes.push(C([-0.55, 4.82, 4.6], [-0.78, 4.9, 6.2], 0.3, 0.13, 0.12));
+      volumes.push(C([0.55, 4.82, 4.6], [0.78, 4.9, 6.2], 0.3, 0.13, 0.12));
+      volumes.push(C([0, 4.35, 4.9], [0, 4.2, 5.7], 0.18, 0.08, 0.1));
+      for (const x of [-1.25, 1.25]) for (const z of [-1.8, 1.7])
+        volumes.push(C([x, 3.1, z], [x * 0.95, 0.65, z], 0.62, 0.38, 0.25));
+    } else if (species === 'gallimimus') {
+      volumes.push(E([0, 3.5, 0], [0.85, 1.0, 1.8], 0.3));
+      volumes.push(C([0, 3.8, 1.2], [0, 5.0, 2.8], 0.42, 0.22, 0.18));
+      volumes.push(E([0, 5.2, 3.1], [0.32, 0.28, 0.55], 0.15));
+      volumes.push(C([0, 3.4, -1.2], [0, 3.0, -4.5], 0.3, 0.08, 0.15));
+      for (const x of [-0.48, 0.48]) {
+        volumes.push(C([x, 3.0, 0.6], [x * 1.1, 0.45, 0.2], 0.22, 0.12, 0.15));
+        volumes.push(C([x * 1.1, 0.45, 0.2], [x * 1.3, 0.12, -0.15], 0.12, 0.06, 0.1));
+      }
+    } else if (species === 'dilophosaurus') {
+      /* A low, long-bodied theropod: the tail and neck carry the silhouette
+       * horizontally so the head cannot collapse into a cat-like stack above
+       * the barrel. The positive Z end is the snout. */
+      volumes.push(E([0, 2.35, 0], [0.82, 0.82, 1.55], 0.3));
+      volumes.push(E([0, 2.55, 1.05], [0.72, 0.68, 0.72], 0.24));
+      volumes.push(C([0, 2.55, 0.85], [0, 3.05, 1.75], 0.34, 0.24, 0.16));
+      volumes.push(C([0, 3.0, 1.7], [0, 3.65, 2.35], 0.25, 0.16, 0.14));
+      volumes.push(C([0, 3.6, 2.3], [0, 3.9, 2.85], 0.17, 0.12, 0.1));
+      volumes.push(E([0, 3.95, 3.05], [0.42, 0.34, 0.72], 0.14));
+      volumes.push(C([0, 3.92, 3.45], [0, 3.85, 4.15], 0.28, 0.13, 0.1));
+      volumes.push(C([0, 3.78, 3.35], [0, 3.72, 4.0], 0.18, 0.08, 0.08));
+      /* Twin crests are thin fore-aft blades on the skull, not vertical ears. */
+      for (const side of [-1, 1]) {
+        volumes.push(C([side * 0.18, 4.25, 2.72], [side * 0.18, 4.35, 3.55],
+          0.11, 0.045, 0.06));
+      }
+      volumes.push(C([0, 2.25, -0.75], [0, 2.15, -3.5], 0.3, 0.15, 0.14));
+      volumes.push(C([0, 2.15, -3.5], [0, 2.05, -5.8], 0.15, 0.035, 0.1));
+      for (const side of [-1, 1]) {
+        /* Digitigrade hindlimbs with a raised ankle and forward foot. */
+        volumes.push(C([side * 0.58, 2.25, -0.35], [side * 0.62, 1.15, -0.05],
+          0.25, 0.16, 0.12));
+        volumes.push(C([side * 0.62, 1.15, -0.05], [side * 0.66, 0.38, 0.42],
+          0.16, 0.1, 0.1));
+        volumes.push(C([side * 0.66, 0.38, 0.42], [side * 0.66, 0.2, 0.95],
+          0.1, 0.055, 0.06));
+        /* Small folded forelimbs tucked beneath the shoulder. */
+        volumes.push(C([side * 0.52, 2.75, 0.85], [side * 0.72, 2.15, 1.15],
+          0.13, 0.09, 0.08));
+        volumes.push(C([side * 0.72, 2.15, 1.15], [side * 0.62, 1.95, 1.45],
+          0.09, 0.045, 0.06));
+      }
+    } else {
+      volumes.push(E([0, 3.40, -0.20], [0.85, 1.15, 2.00], 0.50));
+      volumes.push(E([0, 3.30, 1.30], [0.90, 1.00, 1.20], 0.50));
+      volumes.push(E([0, 3.30, -1.90], [0.75, 0.95, 1.10], 0.45));
+      volumes.push(C([0, 3.50, -2.60], [0, 4.00, -3.60], 0.55, 0.42, 0.35));
+      volumes.push(E([0, 4.05, -4.35], [0.42, 0.50, 0.85], 0.25));
+      volumes.push(E([0, 3.95, -5.05], [0.34, 0.38, 0.55], 0.20));
+      volumes.push(E([0, 3.70, -4.80], [0.30, 0.18, 0.70], 0.15));
+      for (const x of [-0.32, 0.32]) volumes.push(E([x, 4.30, -4.15], [0.14, 0.10, 0.22], 0.10));
+      volumes.push(C([0, 3.30, 1.90], [0, 3.20, 3.40], 0.75, 0.60, 0.40));
+      volumes.push(C([0, 3.20, 3.40], [0, 3.00, 5.00], 0.60, 0.42, 0.30));
+      volumes.push(C([0, 3.00, 5.00], [0, 2.80, 6.50], 0.42, 0.25, 0.20));
+      volumes.push(C([0, 2.80, 6.50], [0, 2.60, 7.80], 0.25, 0.18, 0.12));
+      for (const x of [-1.3, 1.3]) {
+        const side = x < 0 ? -1 : 1;
+        volumes.push(E([side * 0.78, 2.85, 0.85], [0.55, 0.95, 0.85], 0.30));
+        volumes.push(C([side * 0.82, 2.20, 0.95], [side * 0.82, 1.25, 0.30], 0.46, 0.30, 0.20));
+        volumes.push(C([side * 0.82, 1.25, 0.30], [side * 0.82, 0.40, 0.00], 0.30, 0.24, 0.16));
+        for (const toe of [-1, 0, 1]) {
+          volumes.push(C([side * 0.82 + toe * 0.34, 0.20, 0.00],
+            [side * 0.82 + toe * 0.34, 0.16, -0.60], 0.20, 0.13, 0.12));
+        }
+      }
+      for (const x of [-0.55, 0.55]) {
+        volumes.push(C([x, 3.75, -2.30], [x * 1.15, 3.15, -2.00], 0.18, 0.15, 0.10));
+        volumes.push(C([x * 1.15, 3.15, -2.00], [x * 1.2, 2.75, -2.30], 0.15, 0.12, 0.08));
+      }
+    }
+    const boneForPoint = () => ({ indices: [0], weights: [1] });
+    const spacing = ({ triceratops: 0.20, gallimimus: 0.18,
+      dilophosaurus: 0.16, trex: 0.24 })[species] || 0.16;
+    const cacheKey = `${species}:${spacing}`;
+    const started = performance.now();
+    let geometry = GEOMETRY_CACHE.get(cacheKey);
+    this.polygonizeCached = Boolean(geometry);
+    if (!geometry) {
+      geometry = polygonizeVolumes(volumes, { spacing, margin: 0.3, boneForPoint });
+      GEOMETRY_CACHE.set(cacheKey, geometry);
+    }
+    this.polygonizeMs = performance.now() - started;
+    if (!this.polygonizeCached) {
+      POLYGONIZE_COUNTS.set(species, (POLYGONIZE_COUNTS.get(species) || 0) + 1);
+      POLYGONIZE_TIMES.set(species, (POLYGONIZE_TIMES.get(species) || 0) + this.polygonizeMs);
+    }
+    const skeleton = new THREE.Skeleton([root]);
+    root.updateMatrixWorld(true);
+    skeleton.calculateInverses();
+    this.skeleton = skeleton;
+    const mesh = new THREE.SkinnedMesh(geometry, this.material);
+    mesh.name = `implicit-${species}-surface`;
+    mesh.bind(skeleton);
+    mesh.castShadow = mesh.receiveShadow = true;
+    this.group.add(mesh);
+    this.mesh = mesh;
+    this.group.userData.creatureRig = this;
   }
 
   _buildImplicitBrachiosaurus() {
@@ -215,10 +369,10 @@ export class CreatureRig {
     this.bones.head = spine[spine.length - 1];
     this.bones.legs = [];
     const legDefs = [
-      ['front-left', -1, -2.55, 5.85, 3.05, 0.95],
-      ['front-right', 1, -2.55, 5.85, 3.05, 0.95],
-      ['rear-left', -1, 1.2, 4.65, 2.65, 0.76],
-      ['rear-right', 1, 1.2, 4.65, 2.65, 0.76],
+      ['front-left', -1, -2.55, 6.45, 3.45, 1.05],
+      ['front-right', 1, -2.55, 6.45, 3.45, 1.05],
+      ['rear-left', -1, 1.2, 4.95, 2.75, 0.78],
+      ['rear-right', 1, 1.2, 4.95, 2.75, 0.78],
     ];
     for (const [name, side, z, hipY, kneeY, ankleY] of legDefs) {
       const hip = new THREE.Vector3(side * 1.22, hipY, z);
@@ -254,11 +408,15 @@ export class CreatureRig {
       ({ type: 'capsule', a: new THREE.Vector3(...a), b: new THREE.Vector3(...b),
         ra, rb, blend });
     const volumes = [
-      E([0, 5.0, -0.3], [1.65, 2.0, 3.5], 0.6),
-      E([0, 5.65, -2.55], [1.75, 1.65, 1.7], 0.65),
-      E([0, 4.55, 1.45], [1.75, 1.55, 1.9], 0.65),
-      C([0, 4.35, 3.7], [0, 4.55, 9.8], 0.82, 0.12, 0.3),
-      C([0, 6.0, -2.8], [0, 12.0, -6.25], 1.05, 0.38, 0.34),
+      E([0, 5.65, -0.3], [1.65, 2.0, 3.5], 0.6),
+      E([0, 6.25, -2.55], [1.75, 1.65, 1.7], 0.65),
+      E([0, 4.9, 1.45], [1.75, 1.55, 1.9], 0.65),
+      C([0, 4.35, 3.7], [0, 4.45, 6.2], 0.82, 0.52, 0.34),
+      C([0, 4.45, 6.2], [0, 4.7, 8.5], 0.52, 0.24, 0.24),
+      C([0, 4.7, 8.5], [0, 4.62, 10.8], 0.24, 0.12, 0.16),
+      C([0, 6.6, -2.8], [0, 8.4, -4.15], 1.05, 0.84, 0.38),
+      C([0, 8.4, -4.15], [0, 10.8, -5.35], 0.84, 0.56, 0.3),
+      C([0, 10.8, -5.35], [0, 12.7, -6.4], 0.56, 0.36, 0.24),
       E([0, 12.0, -6.9], [0.7, 0.62, 0.95], 0.3),
       E([0, 12.3, -7.15], [0.58, 0.42, 0.6], 0.18),
       E([0, 11.85, -7.5], [0.5, 0.28, 0.7], 0.14),
@@ -275,11 +433,24 @@ export class CreatureRig {
         ));
       }
     }
-    const geometry = polygonizeVolumes(volumes, {
-      spacing: 0.16,
-      margin: 0.3,
-      boneForPoint,
-    });
+    const spacing = this.species === 'brachiosaurus' ? 0.24 : 0.16;
+    const cacheKey = `${this.species}:${spacing}`;
+    const started = performance.now();
+    let geometry = GEOMETRY_CACHE.get(cacheKey);
+    this.polygonizeCached = Boolean(geometry);
+    if (!geometry) {
+      geometry = polygonizeVolumes(volumes, {
+        spacing,
+        margin: 0.3,
+        boneForPoint,
+      });
+      GEOMETRY_CACHE.set(cacheKey, geometry);
+    }
+    this.polygonizeMs = performance.now() - started;
+    if (!this.polygonizeCached) {
+      POLYGONIZE_COUNTS.set(this.species, (POLYGONIZE_COUNTS.get(this.species) || 0) + 1);
+      POLYGONIZE_TIMES.set(this.species, (POLYGONIZE_TIMES.get(this.species) || 0) + this.polygonizeMs);
+    }
     const mesh = new THREE.SkinnedMesh(geometry, this.material);
     mesh.name = 'implicit-brachiosaurus-surface';
     mesh.bind(skeleton);
@@ -292,6 +463,9 @@ export class CreatureRig {
   update(dt, { walk = false } = {}) {
     this.phase += dt * (walk ? 1.15 : 0.38);
     const p = this.phase;
+    if (this.species === 'dilophosaurus' && this.bones.head) {
+      this.bones.head.rotation.x = Math.sin(p * 0.45) * 0.025;
+    }
     const stride = walk ? 0.34 : 0.045;
     const loaded = Math.sin(p * 1.15);
     this.bones.root.rotation.z = loaded * 0.012;
@@ -324,8 +498,10 @@ export class CreatureRig {
         yaw,
         Math.atan2(-n.x, n.y) * 0.65,
       );
+      this.mesh.geometry.computeBoundingBox();
+      const localMinY = this.mesh.geometry.boundingBox.min.y;
       const ground = this.terrain.height(this.group.position.x, this.group.position.z);
-      this.group.position.y = ground;
+      this.group.position.y = ground - localMinY;
       for (const leg of this.bones.legs) {
         const wx = this.group.position.x + leg.end.x;
         const wz = this.group.position.z + leg.end.z;
@@ -347,7 +523,12 @@ export class CreatureRig {
         ? o.geometry.index.count / 3
         : o.geometry.attributes.position.count / 3;
     });
-    return { meshes, triangles };
+    return {
+      meshes,
+      triangles,
+      polygonizeMs: this.polygonizeMs,
+      polygonizeCached: this.polygonizeCached,
+    };
   }
 }
 
@@ -362,6 +543,19 @@ export class DinosaurSystem {
     this.turntable = Boolean(turntable);
     this.debugNormals = Boolean(debugNormals);
     this.audio = null;
+    this.flockVelocity = new Map();
+    this.dust = new THREE.Group();
+    this.dust.name = 'gallimimus-foot-dust';
+    const dustMat = new THREE.MeshBasicMaterial({
+      color: 0x9a7650, transparent: true, opacity: 0.18, depthWrite: false,
+    });
+    const dustGeo = new THREE.SphereGeometry(0.12, 6, 4);
+    for (let i = 0; i < 36; i++) {
+      const puff = new THREE.Mesh(dustGeo, dustMat);
+      puff.visible = false;
+      this.dust.add(puff);
+    }
+    this.root.add(this.dust);
     if (turntable) {
       const dino = new CreatureRig(turntable, {
         seed: 7, terrain: null, debugNormals: this.debugNormals,
@@ -369,33 +563,125 @@ export class DinosaurSystem {
       this.root.add(dino.group);
       this.creatures.push(dino);
     } else {
-      const spots = [[-20, -326], [2, -334], [24, -329]];
-      spots.forEach(([x, z], i) => {
-        const dino = new CreatureRig('brachiosaurus', { seed: i + 1, terrain });
+      const spots = [[-18, -70, 1.2], [-20, -326, 1], [-12, -340, 1], [24, -329, 1]];
+      spots.forEach(([x, z, scale], i) => {
+        const dino = new CreatureRig('brachiosaurus', { seed: i + 1, scale, terrain });
         dino.group.position.set(x, terrain.height(x, z), z);
         dino.group.rotation.y = i * 0.35;
         this.root.add(dino.group);
         this.creatures.push(dino);
       });
+      const add = (species, x, z, seed, scale = 1) => {
+        const dino = new CreatureRig(species, { seed, scale, terrain });
+        dino.group.position.set(x, terrain.height(x, z), z);
+        this.root.add(dino.group);
+        this.creatures.push(dino);
+        return dino;
+      };
+      add('triceratops', 5, -298, 11, 1);
+      for (let i = 0; i < 12; i++) {
+        const a = i / 12 * Math.PI * 2;
+        add('gallimimus', 28 + Math.cos(a) * 4, -322 + Math.sin(a) * 4, 20 + i, 0.72);
+      }
+      for (const dino of this.creatures.filter(c => c.species === 'gallimimus')) {
+        this.flockVelocity.set(dino, new THREE.Vector3(
+          Math.sin(dino.seed) * 0.4, 0, -0.75 + Math.cos(dino.seed * 0.7) * 0.15));
+      }
+      const closeDilo = add('dilophosaurus', 8, -292, 41, 1);
+      closeDilo.group.rotation.y = -0.45;
+      add('dilophosaurus', 4, -260, 42, 1.2);
+      add('trex', 70, -360, 51, 1);
+      console.info('[dinosaurs] polygonisation', Object.fromEntries(
+        [...POLYGONIZE_COUNTS].map(([species, count]) => [species, {
+          count, ms: POLYGONIZE_TIMES.get(species) || 0,
+        }]),
+      ));
     }
   }
 
   update(dt) {
     this.time += dt;
-    for (const dino of this.creatures) dino.update(dt, { walk: false });
+    const flock = this.creatures.filter(c => c.species === 'gallimimus');
+    if (flock.length > 1) {
+      const center = new THREE.Vector3();
+      for (const dino of flock) center.add(dino.group.position);
+      center.multiplyScalar(1 / flock.length);
+      for (const dino of flock) {
+        const velocity = this.flockVelocity.get(dino);
+        const cohesion = center.clone().sub(dino.group.position).multiplyScalar(0.018);
+        const separation = new THREE.Vector3();
+        const alignment = new THREE.Vector3();
+        for (const other of flock) {
+          if (other === dino) continue;
+          const delta = dino.group.position.clone().sub(other.group.position);
+          const d2 = Math.max(0.25, delta.lengthSq());
+          if (d2 < 64) separation.add(delta.multiplyScalar(1 / d2));
+          alignment.add(this.flockVelocity.get(other));
+        }
+        alignment.multiplyScalar(1 / (flock.length - 1));
+        velocity.add(cohesion.multiplyScalar(0.35)).add(separation.multiplyScalar(0.8))
+          .add(alignment.sub(velocity).multiplyScalar(0.16));
+        velocity.y = 0;
+        velocity.clampLength(0.35, 1.15);
+        dino.group.position.addScaledVector(velocity, dt);
+        dino.group.rotation.y = Math.atan2(velocity.x, velocity.z);
+      }
+    }
+    for (const dino of this.creatures) {
+      dino.update(dt, { walk: dino.species === 'gallimimus' || dino.species === 'trex' });
+      if (dino.frill) {
+        const camera = this.terrain.camera;
+        const dx = camera ? dino.group.position.x - camera.position.x : 999;
+        const dz = camera ? dino.group.position.z - camera.position.z : 999;
+        const open = Math.hypot(dx, dz) < 6;
+        dino.frill.scale.x += ((open ? 1 : 0.12) - dino.frill.scale.x) * Math.min(1, dt * 8);
+      }
+    }
+    let puffIndex = 0;
+    for (const dino of flock) {
+      const velocity = this.flockVelocity.get(dino);
+      if (!velocity || velocity.lengthSq() < 0.3) continue;
+      const puff = this.dust.children[puffIndex++ % this.dust.children.length];
+      puff.visible = true;
+      puff.position.copy(dino.group.position);
+      puff.position.y += 0.12 + (this.time * 0.8 % 0.35);
+      puff.position.x += Math.sin(this.time * 7 + dino.seed) * 0.22;
+      puff.position.z += Math.cos(this.time * 6 + dino.seed) * 0.22;
+      const s = 0.5 + ((this.time * 2 + dino.seed) % 1) * 1.5;
+      puff.scale.setScalar(s);
+    }
+    for (; puffIndex < this.dust.children.length; puffIndex++) {
+      this.dust.children[puffIndex].visible = false;
+    }
     if (!this.turntable && this.audio &&
         Math.floor(this.time) !== Math.floor(this.time - dt) &&
         Math.floor(this.time) % 14 === 0) {
       this.audio.triggerDinoRumble(this.creatures[0].group.position, 0.7);
     }
+    if (!this.turntable && this.audio &&
+        Math.floor(this.time) !== Math.floor(this.time - dt) &&
+        Math.floor(this.time) % 31 === 0) {
+      const rex = this.creatures.find(c => c.species === 'trex');
+      if (rex) this.audio.triggerDinoRoar(rex.group.position, 0.8);
+    }
   }
 
   stats() {
+    const bySpecies = {};
     return this.creatures.reduce((out, c) => {
       const s = c.stats();
+      bySpecies[c.species] = bySpecies[c.species] || { instances: 0, ms: 0, cached: 0 };
+      bySpecies[c.species].instances++;
+      bySpecies[c.species].ms += s.polygonizeMs || 0;
+      bySpecies[c.species].cached += s.polygonizeCached ? 1 : 0;
       out.meshes += s.meshes;
       out.triangles += s.triangles;
+      out.polygonizeMs = (out.polygonizeMs || 0) + (s.polygonizeMs || 0);
+      out.cached = (out.cached || 0) + (s.polygonizeCached ? 1 : 0);
       return out;
-    }, { meshes: 0, triangles: 0, instances: this.creatures.length });
+    }, {
+      meshes: 0, triangles: 0, instances: this.creatures.length,
+      polygonizeMs: 0, cached: 0, bySpecies,
+    });
   }
 }

@@ -492,3 +492,164 @@ normal-report.json  debugNormals: true
 The beauty images show brown/green mottled skin under scene lighting, while
 `normal-debug.png` shows pastel RGB normal colors. The images are no longer
 identical and the beauty material does not contain the debug normal output.
+
+## Marching-cubes replacement and mesh validation
+
+Replaced the tetrahedral polygonizer with the canonical 256-case marching-cubes
+table (standard edge/corner topology and winding). This covers both the
+previous bow-tie two-inside tetrahedron case and the omitted/degenerate
+tetrahedron coverage problem. The gradient orientation check remains enabled;
+the refreshed Brachiosaurus mesh required zero corrective flips.
+
+The capture harness now fails if geometry validation reports:
+
+- SDF-gradient triangle disagreement;
+- boundary or non-manifold edges;
+- degenerate triangles;
+- non-finite positions or normals.
+
+Latest validation:
+
+```text
+triangles:         22,864
+gradient errors:   0
+boundary edges:    0
+non-manifold edges:0
+degenerate:        0
+non-finite:        0
+orientation flips: 0
+minimum alignment: -0.0000308 (finite-difference tolerance)
+```
+
+The turntable images were regenerated:
+
+- `normal-debug.png` — smooth pastel normal gradients with no dark triangular
+  holes.
+- `side.png` — continuous mottled brown/green skin and coherent volume shading.
+- `three-quarter-front.png` — shoulder and chest lighting remain continuous.
+- `low-hero.png` — smooth low-angle underside and neck shading.
+
+The tail field now uses three tapering, arcing capsule segments. The neck uses
+three smooth-min capsule segments with a longer S-like rise, and the head/
+nasal volumes were enlarged for a clearer silhouette. Skin contrast was
+increased with stronger mottling and dorsal/belly counter-shading; feet retain
+fleshy pads and blunt toes.
+
+Creature geometry is cached by species and grid spacing, while each individual
+still receives its own skeleton binding. In-world startup now reports:
+
+```text
+instances:       3
+triangles:       68,592
+polygonize time: 829.3 ms total
+cache hits:      2
+```
+
+The previous herd path polygonised the same hard-coded field three times; the
+cached path performs one polygonisation and two geometry reuses. Capsule and
+ellipsoid distance evaluation now uses scalar math to reduce temporary vector
+allocation during grid sampling.
+
+## Brachiosaurus studio framing pass
+
+The turntable harness now derives a world-space bounding box from the actual
+skinned mesh and computes fit distances from the camera field of view. The
+side pose is perpendicular to the animal's long axis, the front pose is on the
+head side, and the low pose keeps the complete silhouette inside frame.
+Turntable atmosphere volume is disabled while retaining the real sun and
+neutral studio ground, so haze no longer washes the skin to grey.
+
+The regenerated reads are:
+
+- `side.png` — full animal is now framed in a true side profile, including the
+  complete tapering tail and all four feet.
+- `three-quarter-front.png` — the camera is genuinely on the head side rather
+  than behind the animal; the head/neck and shoulder silhouette are judgeable.
+- `low-hero.png` — the complete body remains inside the low-angle frame with
+  readable lit/shadow separation.
+- `normal-debug.png` — smooth pastel normals remain clean after the framing and
+  atmosphere changes.
+
+The turntable remains at 22,864 triangles per animal and the geometry
+validation remains green.
+
+## Current procedural species status
+
+The current cached implicit species meshes validate as follows:
+
+| Species | Triangles | Boundary | Non-manifold | Degenerate | Non-finite | Orientation flips |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Triceratops | 8,442 | 0 | 0 | 0 | 0 | 2 |
+| Gallimimus | 3,346 | 0 | 0 | 0 | 0 | 2 |
+| Dilophosaurus | 3,058 | 0 | 0 | 0 | 0 | 30 |
+| T-Rex | 6,022 | 0 | 0 | 0 | 0 | 4 |
+
+The species are now placed in the world and share the geometry cache. The
+remaining weaknesses are that Gallimimus flocking/dust and the Dilophosaurus
+proximity frill are procedural approximations rather than authored animation.
+No visual acceptance is inferred from these numbers; they only describe fresh
+capture and topology checks.
+
+## Current content pass
+
+The final capture harness now warms and streams vegetation around each shot
+position, validates named-subject coverage and first-hit visibility, and
+records nearby vegetation counts. The nine final frames have been regenerated
+with distinct cameras. Gallimimus now has velocity-based cohesion, separation,
+alignment, and small foot-dust puffs; these are procedural approximations, not
+an authored animation. Dilophosaurus has a separate proximity-driven frill.
+Trail dressing includes route markers, a park map board, and crates.
+
+Fresh verification after this pass:
+
+```text
+node tools/final.mjs        — all nine final captures passed coverage/visibility/vegetation gates
+npm run dino-world          — 18 instances, 19 meshes, 78,020 dinosaur triangles, 13 cache hits
+npm run dump                — 131,434 vegetation instances, 61,698,544 vegetation tris, ok: true
+normal-run probe            — avg renderOnce 14.6 ms, max 30.8 ms, zero captured console errors
+```
+
+Known weaknesses remain: the non-zero orientation-flip counts above have not
+been eliminated, and the tan studio sliver has not been conclusively isolated.
+These claims describe implementation and harness results only; they are not
+visual acceptance.
+
+## Normal gameplay visibility pass
+
+The first implementation placed all dinosaur encounters near the final capture
+zone, so normal play from the trailhead did not reveal dinosaurs for a long
+stretch. The route was reworked with gameplay-facing encounters and a
+pixel-diff probe (`tools/gameplay-probe.mjs`) that renders each sampled route
+frame with and without dinosaurs, then with and without vegetation. This avoids
+trusting projected bounding boxes when foliage fully occludes an animal.
+
+The normal route now has three verified dinosaur encounters while preserving
+rainforest density in the same frames:
+
+| Route sample | Vegetation pixels | Dinosaur evidence |
+| --- | ---: | --- |
+| `t-0.18` | 64.02% | Brachiosaurus 2.98% pixel diff |
+| `t-0.66` | 56.02% | Dilophosaurus 2.57% pixel diff |
+| `t-0.74` | 42.09% | Triceratops 3.75%, Dilophosaurus 2.41% pixel diff |
+
+Fresh route screenshots are in `shots/gameplay/route/`. The Brachiosaurus is
+visible early on the trail through a narrow canopy sightline, and the later
+Dilophosaurus/Triceratops encounters retain near-field foliage, understory and
+jungle walls. Gameplay clearings suppress only tall sightline species, leaving
+ground cover, broadleaf plants, ferns and litter intact.
+
+The Dilophosaurus was reshaped after visual inspection because the first close
+encounter read like a house cat. Its current procedural volume list uses a
+longer low body, horizontal tail, S-curved neck, elongated snout, fore-aft crest
+blades, small forelimbs and digitigrade hindlimbs. Triceratops frill and brow
+horn volumes were also strengthened for the gate encounter.
+
+Fresh verification after this gameplay pass:
+
+```text
+node tools/gameplay-probe.mjs  — route pixel-diff visibility/vegetation probe passed
+node --check changed JS/MJS    — passed
+git diff --check               — passed
+npm run dino-world             — 20 instances, 22 meshes, 91,980 dinosaur triangles, 15 cache hits
+npm run dump                   — 131,434 vegetation instances, 61,698,544 vegetation tris, ok: true
+```

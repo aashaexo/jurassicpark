@@ -6,6 +6,7 @@
  * load-bearing rather than debug convenience.
  */
 import * as THREE from 'three';
+if (typeof window !== 'undefined') window.THREE = THREE;
 import { Trail } from './world/path.js';
 import { Terrain, makeTerrainMaterial } from './world/terrain.js';
 import { Sky } from './render/sky.js';
@@ -24,6 +25,9 @@ import { Atmosphere } from './render/atmosphere.js';
 import { Ambience } from './audio/engine.js';
 import { DebugOverlay } from './debug.js';
 import { DinosaurSystem } from './world/creatures.js';
+import { JurassicGate } from './world/jurassic-gate.js';
+import { ElectricFence } from './world/electric-fence.js';
+import { SafariJeep } from './world/jeep.js';
 
 /* Quality tiers.
  *
@@ -111,6 +115,14 @@ class Game {
     this.scene = scene;
     this.dinoName = new URLSearchParams(location.search).get('dino') ||
       new URLSearchParams(location.hash.slice(1)).get('dino');
+    this.parkCapture = new URLSearchParams(location.search).get('park') === '1' ||
+      new URLSearchParams(location.hash.slice(1)).get('park') === '1';
+    this.parkStudio = new URLSearchParams(location.search).get('parkStudio') === '1' ||
+      new URLSearchParams(location.hash.slice(1)).get('parkStudio') === '1';
+    this.fenceStudio = new URLSearchParams(location.search).get('fenceStudio') === '1' ||
+      new URLSearchParams(location.hash.slice(1)).get('fenceStudio') === '1';
+    this.jeepStudio = new URLSearchParams(location.search).get('jeepStudio') === '1' ||
+      new URLSearchParams(location.hash.slice(1)).get('jeepStudio') === '1';
     this.dinoDebug = new URLSearchParams(location.search).get('debug') ||
       new URLSearchParams(location.hash.slice(1)).get('debug');
 
@@ -118,6 +130,7 @@ class Game {
 
     this.sky = new Sky(this.renderer);
     this.sky.setSun(38, 152);
+    if (this.parkStudio) this.sky.setSun(38, 332);
     scene.add(this.sky.mesh);
 
     /* Depth cue. Real jungle air is thick with water vapour and the visibility
@@ -280,21 +293,101 @@ class Game {
       turntable: this.dinoName,
       debugNormals: this.dinoDebug === 'normal',
     });
+    this.terrain.camera = this.camera;
     this.creatures = this.dinosaurs;
     scene.add(this.dinosaurs.root);
-    if (this.dinoName) {
+    this.gate = new JurassicGate(this.terrain);
+    scene.add(this.gate.root);
+    this.fence = new ElectricFence(this.terrain);
+    scene.add(this.fence.root);
+    this.jeep = new SafariJeep(this.terrain);
+    scene.add(this.jeep.root);
+    if (!this.dinoName && !this.parkStudio && !this.fenceStudio && !this.jeepStudio) {
+      const canopySightline = ['tree', 'canopy', 'canopy2', 'subcanopy', 'palm', 'sapling', 'vine'];
+      const clearCorridor = (points, radius) => {
+        for (const [x, z] of points) this.veg.suppressZone(x, z, radius, canopySightline);
+      };
+      /* Open only the tall sightline plants. Ground cover, ferns, broadleaf
+       * plants and litter remain in the foreground so every encounter still
+       * reads as rainforest rather than a cleared lot. */
+      clearCorridor([
+        [-2, -44], [-7, -53], [-12, -62], [-18, -70],
+      ], 7);
+      clearCorridor([
+        [11, -281], [8, -289], [5, -298],
+      ], 6);
+      clearCorridor([
+        [4, -315], [-2, -327], [-12, -340],
+        [10, -318], [19, -320], [28, -322],
+      ], 6);
+      clearCorridor([
+        [-0, -247], [2, -254], [4, -260],
+      ], 6);
+    }
+    this.trailDressing = new THREE.Group();
+    this.trailDressing.name = 'trail-dressing';
+    const wood = new THREE.MeshStandardMaterial({ color: 0x5a3927, roughness: 0.95 });
+    const paint = new THREE.MeshStandardMaterial({ color: 0xd1b36a, roughness: 0.8 });
+    const addBox = (size, x, z, y, material, name) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
+      mesh.name = name;
+      mesh.position.set(x, this.terrain.height(x, z) + y, z);
+      mesh.castShadow = mesh.receiveShadow = true;
+      this.trailDressing.add(mesh);
+    };
+    for (const [x, z, label] of [[5.4, -276, 'route-marker-1'], [8.6, -292, 'route-marker-2'], [5.2, -312, 'route-marker-3']]) {
+      addBox([0.12, 1.4, 0.12], x, z, 0.7, wood, label);
+      addBox([0.65, 0.35, 0.06], x, z - 0.02, 1.35, paint, `${label}-arrow`);
+    }
+    addBox([2.4, 1.8, 0.12], 4.5, -264, 1.0, wood, 'park-map-board');
+    addBox([1.8, 0.9, 0.08], 4.5, -264.08, 1.05, paint, 'park-map-panel');
+    for (const [x, z] of [[9.5, -278], [10.2, -279.2], [6.4, -306]]) {
+      addBox([0.8, 0.55, 0.65], x, z, 0.28, wood, 'trail-crate');
+    }
+    scene.add(this.trailDressing);
+    if (this.parkCapture) {
+      for (const [x, z, radius] of [
+        [7, -304, 6], [7, -286, 3], [7, -270, 3],
+        [-20, -326, 4], [-8, -296, 3],
+        [42, -300, 3], [13, -286, 3], [70, -360, 3],
+      ]) this.veg.suppressZone(x, z, radius);
+    }
+    if (this.dinoName || this.parkStudio || this.fenceStudio || this.jeepStudio) {
       this.terrain.group.visible = false;
       this.veg.root.visible = false;
       this.ruins.root.visible = false;
       this.water.root.visible = false;
+      if (!this.dinoName) this.dinosaurs.root.visible = false;
+      this.fence.root.visible = false;
+      this.jeep.root.visible = false;
+    }
+    if (this.fenceStudio) {
+      this.gate.root.visible = false;
+      this.fence.root.visible = true;
+    }
+    if (this.jeepStudio) {
+      this.gate.root.visible = false;
+      this.fence.root.visible = false;
+      this.jeep.root.visible = true;
+    }
+    if (this.dinoName || this.parkCapture || this.parkStudio || this.fenceStudio || this.jeepStudio) {
       scene.fog = null;
+    }
+    if (this.dinoName || this.parkStudio || this.fenceStudio || this.jeepStudio) {
       const ground = new THREE.Mesh(
-        new THREE.PlaneGeometry(40, 40),
+        new THREE.PlaneGeometry(200, 200),
         new THREE.MeshStandardMaterial({ color: 0x918a73, roughness: 1 }),
       );
       ground.rotation.x = -Math.PI / 2;
+      if (this.dinoName) {
+        const dinoMesh = this.dinosaurs.creatures[0].mesh;
+        dinoMesh.geometry.computeBoundingBox();
+        ground.position.y = dinoMesh.geometry.boundingBox.min.y;
+      } else {
+        ground.position.y = this.terrain.height(7, -304);
+      }
       ground.receiveShadow = true;
-      ground.name = 'dinosaur-turntable-ground';
+      ground.name = this.parkStudio ? 'park-gate-studio-ground' : 'dinosaur-turntable-ground';
       scene.add(ground);
     }
 
@@ -312,7 +405,7 @@ class Game {
                              this.collision).attach(this.canvas);
     this.body = new PlayerBody(this.renderer, this.walker, { tier: this.tier });
     scene.add(this.body.root);
-    if (this.dinoName) this.body.root.visible = false;
+    if (this.dinoName || this.parkStudio) this.body.root.visible = false;
     /* First-person limbs and the complete external body use separate layers.
      * This camera sees only the camera-aligned representation; PlayerBody
      * exposes the complete one to the depth traversal just long enough to cast
@@ -330,6 +423,10 @@ class Game {
     this.canopy.setSun(this.sky.sunDir);
     this.atmos = new Atmosphere(this.renderer, this.canopy);
     this.atmos.setTier(this.tier);
+    if (this.dinoName || this.parkCapture || this.parkStudio || this.fenceStudio || this.jeepStudio) {
+      this.atmos.enabled = false;
+      this.atmos.grade.enabled = false;
+    }
     this._syncAtmosphereSize();
 
     /* Every opaque MeshStandardMaterial in the scene, and the list is
@@ -339,8 +436,15 @@ class Game {
     for (const m of [this.terrainMat, this.veg.leafMat, this.veg.woodMat,
                      this.ruins.material, ...this.water.materials,
                      ...this.body.materials, ...this.dinosaurs.creatures.map(c => c.material)]) {
-      if (m.userData && (m.userData.debugNormals || m.userData.skipCanopy)) continue;
+      if (m.userData && m.userData.debugNormals) continue;
       patchCanopyLight(m, this.canopy);
+    }
+    const gateMaterials = new Set();
+    this.gate.root.traverse(o => {
+      if (o.material && o.material.isMeshStandardMaterial) gateMaterials.add(o.material);
+    });
+    if (!this.parkStudio) {
+      for (const material of gateMaterials) patchCanopyLight(material, this.canopy);
     }
 
     /* Nothing is allocated on the audio device here and no buffer is
@@ -460,6 +564,9 @@ class Game {
     this.camera.matrixWorldInverse.copy(this.camera.matrixWorld).invert();
     this.veg.update(dt, this.camera, this.sky.sunDir, this.sun.color, this.hemi.color);
     this.dinosaurs.update(dt);
+    this.gate?.update(performance.now() * 0.001);
+    this.fence?.update(this.camera);
+    if (this.fence?.humLevel > 0.02) this.ambience?.triggerFenceHum(this.fence.humLevel);
     this.ruins.update(dt, this.camera);
     this.water.update(dt, this.camera, this.sky.sunDir, this.sun.color,
                       this.hemi.color, this.sun.intensity);
