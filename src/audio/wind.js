@@ -76,3 +76,96 @@ export function rustleGain(g) { return Math.pow(smoothstep(0.36, 0.92, g), 1.5);
 
 /** Seconds the right channel lags the left: the gust's travel time. */
 export const RUSTLE_LAG = 0.35;
+
+export const BRUSH_LOOP = 7.73;
+export const CREAK_VARIANTS = 3;
+
+/**
+ * Brush-through texture: the player's own body pushing past foliage.
+ * Same granular recipe as the canopy rustle but a broader band and a much
+ * denser gate — near-field leaves brush continuously rather than in the
+ * discrete gusty collisions the canopy makes overhead.
+ */
+export function renderBrush(sr, seed, seconds = BRUSH_LOOP) {
+  const rng = makeRng(seed);
+  const n = Math.round(seconds * sr);
+  const out = new Float32Array(n);
+  const bp = biquad('bandpass', sr, rrange(rng, 1700, 2300), 0.45);
+  const gateLp = biquad('lowpass', sr, rrange(rng, 70, 110), 0.707);
+  for (let i = 0; i < n; i++) {
+    const g = Math.max(0, gateLp.step((rng() * 2 - 1) * 8));
+    out[i] = bp.step(rng() * 2 - 1) * (0.15 + 0.85 * Math.min(1, g * g * 4));
+  }
+  return loopify(normalize(out), sr);
+}
+
+/**
+ * A branch creak: gated noise through a high-Q bandpass, so the woody
+ * resonance is the filter's ring and the stick-slip is the gate. A raised
+ * sine envelope gives it the lean-and-release shape of a trunk loading up
+ * under a gust and letting go.
+ */
+export function renderCreak(sr, seed) {
+  const rng = makeRng(seed);
+  const seconds = rrange(rng, 1.1, 1.9);
+  const n = Math.round(seconds * sr);
+  const out = new Float32Array(n);
+  const bp = biquad('bandpass', sr, rrange(rng, 160, 300), 6);
+  const gate = biquad('lowpass', sr, rrange(rng, 9, 15), 0.707);
+  for (let i = 0; i < n; i++) {
+    const env = Math.pow(Math.sin(Math.PI * Math.min(1, (i / n) * 1.15)), 1.5);
+    const g = Math.max(0, gate.step((rng() * 2 - 1) * 10));
+    out[i] = bp.step((rng() * 2 - 1) * (0.2 + 0.8 * Math.min(1, g * g * 5))) * env;
+  }
+  return normalize(out);
+}
+
+/**
+ * Brush gain from normalized player speed (speed / jog speed). Zero at
+ * rest — foliage you are not moving through makes no contact noise — and
+ * saturating below full jog so a walk already reads.
+ */
+export function brushGain(speedNorm) {
+  return smoothstep(0.12, 0.85, speedNorm);
+}
+
+/**
+ * Creak scheduler: creaks only happen when a gust is actually loading the
+ * trees, so candidate times walk forward until the gust envelope is high.
+ * Same shape as the bird/insect schedulers — a stateful next() the engine
+ * and the offline renderer both consume, so a WAV has the same creaks the
+ * game would.
+ */
+export function makeCreakEvents(seed, gesture) {
+  const rng = makeRng(seed ^ 0xc4ea);
+  let t = rrange(rng, 4, 10);
+  return {
+    next() {
+      for (let guard = 0; guard < 400; guard++) {
+        const g = gustEnvelope(gesture, t);
+        if (g > 0.52 && rng() < 0.7) {
+          const ev = {
+            time: t,
+            variant: (rng() * CREAK_VARIANTS) | 0,
+            az: rng() * Math.PI * 2,
+            dist: rrange(rng, 5, 16),
+            elev: rrange(rng, 3, 8),
+            rate: 0.92 + rng() * 0.16,
+            gain: 0.7 + 0.5 * smoothstep(0.52, 1, g),
+          };
+          t += rrange(rng, 3, 9);
+          return ev;
+        }
+        t += rrange(rng, 1.5, 4);
+      }
+      // Calm weather for minutes on end: emit a soft distant creak anyway
+      // rather than letting a consumer loop on next() forever.
+      const ev = {
+        time: t, variant: (rng() * CREAK_VARIANTS) | 0,
+        az: rng() * Math.PI * 2, dist: 14, elev: 6, rate: 1, gain: 0.5,
+      };
+      t += rrange(rng, 6, 12);
+      return ev;
+    },
+  };
+}

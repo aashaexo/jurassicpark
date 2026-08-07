@@ -24,6 +24,12 @@ export const LEVELS = {
   birds: -20,
   wash: -31,
   rustle: -23,
+  /* Between the wash and the rustle: a creak is a foreground event but a
+   * quiet one — a branch heard once a minute, not a door in a horror film. */
+  creak: -26,
+  /* Near-field foliage brushing past the moving player. Kept under the
+   * canopy rustle: it is felt as your own contact noise, not weather. */
+  brush: -27,
   falls: -11,
   brook: -24,
   steps: -19,

@@ -14,7 +14,7 @@
 import { renderCicadaBed, renderCricketBed, renderKatydid, renderCricketChirp, CICADA_LOOPS, CRICKET_LOOPS } from './insects.js';
 import { renderBirdCall, SPECIES } from './birds.js';
 import { renderRumble, renderCascade, renderSpray, renderBabble } from './water.js';
-import { renderRustle, renderWash, RUSTLE_LOOPS } from './wind.js';
+import { renderRustle, renderWash, renderBrush, renderCreak, RUSTLE_LOOPS, CREAK_VARIANTS } from './wind.js';
 import { renderFootstep, renderLanding, WET_LEVELS, STEP_VARIANTS, LAND_VARIANTS } from './steps.js';
 
 export const DEFAULT_SEED = 7311;
@@ -41,6 +41,10 @@ export function bankJobs(sr, seed = DEFAULT_SEED) {
   RUSTLE_LOOPS.forEach((secs, k) => jobs.push(() =>
     ({ key: `rustle${k}`, buf: renderRustle(sr, seed + 51 + k, secs) })));
   jobs.push(() => ({ key: 'wash', buf: renderWash(sr, seed + 53) }));
+  jobs.push(() => ({ key: 'brush', buf: renderBrush(sr, seed + 54) }));
+  for (let v = 0; v < CREAK_VARIANTS; v++) {
+    jobs.push(() => ({ key: `creak:${v}`, buf: renderCreak(sr, seed + 60 + v) }));
+  }
 
   // Three seeded variants per bird species; playback-rate jitter multiplies
   // the effective variety, so three is enough that no repetition survives.
