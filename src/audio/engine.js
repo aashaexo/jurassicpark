@@ -32,7 +32,7 @@ import { JOG_SPEED, JUMP_SPEED } from '../player/gait.js';
 import { cicadaSwell, cricketGate, makeInsectEvents, CICADA_LOOPS, CRICKET_LOOPS } from './insects.js';
 import { makeBirdScheduler } from './birds.js';
 import { fallsBalance } from './water.js';
-import { gustEnvelope, washGain, rustleGain, RUSTLE_LAG } from './wind.js';
+import { gustEnvelope, washGain, rustleGain, brushGain, makeCreakEvents, RUSTLE_LAG } from './wind.js';
 
 /* Control-rate constants. Gains and positions move at 20 Hz with
  * setTargetAtTime smoothing the last mile; per-frame updates buy nothing
@@ -157,8 +157,10 @@ export class Ambience {
       this._buildGraph();
       this._birdSched = makeBirdScheduler(this.seed + 1000);
       this._insectSched = makeInsectEvents(this.seed + 2000);
+      this._creakSched = makeCreakEvents(this.seed + 3000, this._gesture);
       this._nextBird = this._birdSched.next(this.walker.trailT);
       this._nextInsect = this._insectSched.next();
+      this._nextCreak = this._creakSched.next();
       this._t0 = this.ctx.currentTime;
       this.ready = true;
     } catch (err) {
@@ -289,6 +291,7 @@ export class Ambience {
     bed('wash', 0);
     bed('rustle0', -0.6);
     bed('rustle1', 0.6);
+    bed('brush', 0);
 
     /* Positional sources: gain → air-absorption lowpass → panner → master.
      * Equal-power panning, not HRTF: a dozen concurrent HRTF convolutions
@@ -409,6 +412,10 @@ export class Ambience {
     set(this._beds.wash.gain, this._lv('wash') * washGain(gust));
     set(this._beds.rustle0.gain, this._lv('rustle') * rustleGain(gust));
     set(this._beds.rustle1.gain, this._lv('rustle') * rustleGain(gustEnvelope(g, time - RUSTLE_LAG)));
+    /* Your own passage through the understory: gated on the walker's actual
+     * speed, so stopping to look at a dinosaur silences it. */
+    set(this._beds.brush.gain,
+      this._lv('brush') * brushGain(clamp((this.walker.speed || 0) / JOG_SPEED, 0, 1)));
 
     /* Falls: the panner handles inverse-distance level; character (the
      * rumble→cascade→spray unmasking) and air absorption are ours. Distance
@@ -455,6 +462,12 @@ export class Ambience {
         this.bank[`${this._nextInsect.kind}:${this._nextInsect.variant}`],
         this._nextInsect, e, this._lv('insectEvent'), 6);
       this._nextInsect = this._insectSched.next();
+    }
+    while (this._nextCreak.time < ambNow + HORIZON) {
+      this._spawnPositionalOneShot(
+        this.bank[`creak:${this._nextCreak.variant}`],
+        this._nextCreak, e, this._lv('creak'), 8);
+      this._nextCreak = this._creakSched.next();
     }
   }
 

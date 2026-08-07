@@ -23,8 +23,8 @@ import {
 import { cicadaSwell, cricketGate, makeInsectEvents, CICADA_LOOPS, CRICKET_LOOPS } from './insects.js';
 import { makeBirdScheduler } from './birds.js';
 import { fallsBalance } from './water.js';
-import { gustEnvelope, washGain, rustleGain, RUSTLE_LAG } from './wind.js';
-import { WALK_SPEED, WALK_STEP_LENGTH } from '../player/gait.js';
+import { gustEnvelope, washGain, rustleGain, brushGain, makeCreakEvents, RUSTLE_LAG } from './wind.js';
+import { WALK_SPEED, JOG_SPEED, WALK_STEP_LENGTH } from '../player/gait.js';
 
 /* One phase is a two-step gait cycle. Importing the actual step length keeps
  * an offline soundscape honest when locomotion is tuned; duplicated literals
@@ -105,6 +105,9 @@ export function renderScene(sr, seconds, opts = {}) {
     addLoop('wash', 0, (time) => levelGain('wash') * washGain(gustEnvelope(gesture, time)));
     addLoop('rustle0', -0.6, (time) => levelGain('rustle') * rustleGain(gustEnvelope(gesture, time)));
     addLoop('rustle1', 0.6, (time) => levelGain('rustle') * rustleGain(gustEnvelope(gesture, time - RUSTLE_LAG)));
+    // The offline walk is constant-speed, so the brush bed is a constant
+    // gain — the engine's speed gating is what varies it live.
+    if (walk) addLoop('brush', 0, () => levelGain('brush') * brushGain(WALK_SPEED / JOG_SPEED));
   }
   if (has('falls')) {
     for (const part of ['rumble', 'cascade', 'spray']) {
@@ -167,6 +170,17 @@ export function renderScene(sr, seconds, opts = {}) {
     }
   }
 
+  if (has('wind')) {
+    const sched = makeCreakEvents(seed + 3000, gesture);
+    for (let guard = 0; guard < 2000; guard++) {
+      const ev = sched.next();
+      if (ev.time >= seconds) break;
+      addEvent(L, R, sr, bank[`creak:${ev.variant}`], ev.time,
+        levelGain('creak') * ev.gain * distGain(ev.dist, 8),
+        Math.sin(ev.az) * 0.85, ev.rate, airCutoff(ev.dist));
+    }
+  }
+
   if (has('insects')) {
     const sched = makeInsectEvents(seed + 2000);
     for (let guard = 0; guard < 4000; guard++) {
@@ -219,6 +233,9 @@ export const DEMOS = {
   'layer-falls-far':  { secs: 15, opts: { layers: ['falls'], t0: 0.68, walk: false } },
   'layer-falls-near': { secs: 15, opts: { layers: ['falls'], t0: 0.995, walk: false } },
   'layer-wind':       { secs: 30, opts: { layers: ['wind'], t0: 0.30, walk: false } },
+  /* Long enough to span the seeded weather's first windy stretch, so the
+   * WAV actually contains branch creaks and not just the beds. */
+  'layer-canopy':     { secs: 140, opts: { layers: ['wind'], t0: 0.30, walk: true } },
   'layer-footsteps':  { secs: 12, opts: { layers: ['steps'], t0: 0.30, walk: true, wetnessFn: (time) => Math.min(1, time / 10) } },
   'mix-t015':         { secs: 20, opts: { t0: 0.15, walk: true, birdDensity: 0.25 } },
   'mix-t055':         { secs: 20, opts: { t0: 0.55, walk: true, birdDensity: 0.25 } },
